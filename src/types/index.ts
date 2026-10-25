@@ -186,3 +186,20 @@ export interface AuditLogRecord {
   record_hash: string;
   signature?: string | null;
 }
+
+export interface SanitizedQuestion {
+  id: string;
+  order_index: number;
+  prompt: string;
+  question_type: QuestionType;
+  options: QuizQuestionOption[];
+}
+
+export interface SanitizedQuiz {
+  id: string;
+  module_id: string;
+  title: string;
+  passing_score_pct: number;
+  time_limit_minutes: number | null;
+  questions: SanitizedQuestion[];
+}

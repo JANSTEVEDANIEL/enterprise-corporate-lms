@@ -27,6 +27,7 @@ export function getDb(): DatabaseSync {
   dbInstance.exec("PRAGMA journal_mode = WAL;");
   dbInstance.exec("PRAGMA foreign_keys = ON;");
   dbInstance.exec("PRAGMA synchronous = NORMAL;");
+  dbInstance.exec("PRAGMA busy_timeout = 5000;");
 
   return dbInstance;
 }
@@ -45,6 +46,14 @@ export function closeDb(): void {
 export function initDb(): void {
   const db = getDb();
   db.exec(SCHEMA_SQL);
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS prevent_audit_replace 
+    BEFORE INSERT ON audit_logs 
+    WHEN (SELECT 1 FROM audit_logs WHERE id = NEW.id OR uuid = NEW.uuid) IS NOT NULL
+    BEGIN 
+      SELECT RAISE(ABORT, 'Audit log records are immutable and cannot be replaced or overwritten'); 
+    END;
+  `);
 }
 
 // Re-export seedDb from seed.ts

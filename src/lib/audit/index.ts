@@ -71,86 +71,107 @@ export function recordAuditEvent(event: RecordAuditEventInput): AuditLogRecord {
   initDb();
   const db = getDb();
 
-  // Find previous hash
-  const lastRecordStmt = db.prepare("SELECT record_hash FROM audit_logs ORDER BY id DESC LIMIT 1");
-  const lastRecord = lastRecordStmt.get() as { record_hash: string } | undefined;
-  const prevHash = lastRecord ? lastRecord.record_hash : GENESIS_HASH;
+  let startedTransaction = false;
+  try {
+    db.exec("BEGIN IMMEDIATE;");
+    startedTransaction = true;
+  } catch {
+    // Transaction already active
+  }
 
-  const uuid = randomUUID();
-  const timestamp = new Date().toISOString();
-  const metadataObj = {
-    ...(event.details || {}),
-    ipAddress: event.ipAddress || "127.0.0.1",
-  };
-  const metadata = JSON.stringify(metadataObj);
-  const actorName = event.actorName || event.actorId;
+  try {
+    // Find previous hash
+    const lastRecordStmt = db.prepare("SELECT record_hash FROM audit_logs ORDER BY id DESC LIMIT 1");
+    const lastRecord = lastRecordStmt.get() as { record_hash: string } | undefined;
+    const prevHash = lastRecord ? lastRecord.record_hash : GENESIS_HASH;
 
-  const recordHash = computeRecordHash({
-    uuid,
-    prevHash,
-    timestamp,
-    actorId: event.actorId,
-    actorRole: event.actorRole,
-    action: event.action,
-    targetType: event.targetType,
-    targetId: event.targetId,
-    courseId: event.courseId,
-    moduleId: event.moduleId,
-    moduleVersion: event.moduleVersion,
-    score: event.score,
-    metadata,
-  });
+    const uuid = randomUUID();
+    const timestamp = new Date().toISOString();
+    const metadataObj = {
+      ...(event.details || {}),
+      ipAddress: event.ipAddress || "127.0.0.1",
+    };
+    const metadata = JSON.stringify(metadataObj);
+    const actorName = event.actorName || event.actorId;
 
-  const insertStmt = db.prepare(`
-    INSERT INTO audit_logs (
-      uuid, timestamp, actor_id, actor_role, actor_name, action,
-      target_type, target_id, course_id, module_id, module_version,
-      score, metadata, prev_hash, record_hash
-    ) VALUES (
-      ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?
-    )
-  `);
+    const recordHash = computeRecordHash({
+      uuid,
+      prevHash,
+      timestamp,
+      actorId: event.actorId,
+      actorRole: event.actorRole,
+      action: event.action,
+      targetType: event.targetType,
+      targetId: event.targetId,
+      courseId: event.courseId,
+      moduleId: event.moduleId,
+      moduleVersion: event.moduleVersion,
+      score: event.score,
+      metadata,
+    });
 
-  const result = insertStmt.run(
-    uuid,
-    timestamp,
-    event.actorId,
-    event.actorRole,
-    actorName,
-    event.action,
-    event.targetType,
-    event.targetId,
-    event.courseId || null,
-    event.moduleId || null,
-    event.moduleVersion || null,
-    event.score ?? null,
-    metadata,
-    prevHash,
-    recordHash
-  );
+    const insertStmt = db.prepare(`
+      INSERT INTO audit_logs (
+        uuid, timestamp, actor_id, actor_role, actor_name, action,
+        target_type, target_id, course_id, module_id, module_version,
+        score, metadata, prev_hash, record_hash
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?
+      )
+    `);
 
-  const insertedId = Number(result.lastInsertRowid);
+    const result = insertStmt.run(
+      uuid,
+      timestamp,
+      event.actorId,
+      event.actorRole,
+      actorName,
+      event.action,
+      event.targetType,
+      event.targetId,
+      event.courseId || null,
+      event.moduleId || null,
+      event.moduleVersion || null,
+      event.score ?? null,
+      metadata,
+      prevHash,
+      recordHash
+    );
 
-  return {
-    id: insertedId,
-    uuid,
-    timestamp,
-    actor_id: event.actorId,
-    actor_role: event.actorRole,
-    actor_name: actorName,
-    action: event.action,
-    target_type: event.targetType,
-    target_id: event.targetId,
-    course_id: event.courseId || null,
-    module_id: event.moduleId || null,
-    module_version: event.moduleVersion || null,
-    score: event.score ?? null,
-    metadata,
-    prev_hash: prevHash,
-    record_hash: recordHash,
-  };
+    if (startedTransaction) {
+      db.exec("COMMIT;");
+    }
+
+    const insertedId = Number(result.lastInsertRowid);
+
+    return {
+      id: insertedId,
+      uuid,
+      timestamp,
+      actor_id: event.actorId,
+      actor_role: event.actorRole,
+      actor_name: actorName,
+      action: event.action,
+      target_type: event.targetType,
+      target_id: event.targetId,
+      course_id: event.courseId || null,
+      module_id: event.moduleId || null,
+      module_version: event.moduleVersion || null,
+      score: event.score ?? null,
+      metadata,
+      prev_hash: prevHash,
+      record_hash: recordHash,
+    };
+  } catch (err) {
+    if (startedTransaction) {
+      try {
+        db.exec("ROLLBACK;");
+      } catch {}
+    }
+    throw err;
+  }
 }
 
 export interface AuditVerificationResult {

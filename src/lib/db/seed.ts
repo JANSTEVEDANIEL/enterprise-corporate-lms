@@ -32,6 +32,14 @@ export function seedDb(): void {
     );
   }
 
+  // Ensure manager relationships are linked once all users exist
+  const updateManagerStmt = db.prepare("UPDATE users SET manager_id = ? WHERE id = ?");
+  for (const persona of Object.values(CORPORATE_PERSONAS)) {
+    if (persona.managerId) {
+      updateManagerStmt.run(persona.managerId, persona.id);
+    }
+  }
+
   // 2. Seed Courses
   const insertCourseStmt = db.prepare(`
     INSERT OR REPLACE INTO courses (
@@ -86,6 +94,48 @@ export function seedDb(): void {
       renewal_period_days: 365,
       passing_score_pct: 85,
       version: "2.1.0",
+      is_published: 1,
+    },
+    {
+      id: "crs_comp_osha",
+      slug: "osha-workplace-safety-hazcom-standards",
+      title: "OSHA Workplace Safety & Hazard Communication",
+      description: "Mandatory occupational health and safety standards covering chemical labeling (GHS), personal protective equipment (PPE), emergency evacuation, and incident reporting.",
+      category: "COMPLIANCE",
+      target_role: "ALL",
+      is_mandatory: 1,
+      estimated_minutes: 40,
+      renewal_period_days: 365,
+      passing_score_pct: 80,
+      version: "2026.1.0",
+      is_published: 1,
+    },
+    {
+      id: "crs_comp_hipaa",
+      slug: "hipaa-security-patient-privacy-2026",
+      title: "HIPAA Security & Health Information Privacy 2026",
+      description: "Regulatory compliance training covering protected health information (PHI) confidentiality, electronic transmissions, breach notification rules, and HIPAA Security Rule controls.",
+      category: "COMPLIANCE",
+      target_role: "ALL",
+      is_mandatory: 1,
+      estimated_minutes: 45,
+      renewal_period_days: 365,
+      passing_score_pct: 80,
+      version: "2026.1.0",
+      is_published: 1,
+    },
+    {
+      id: "crs_comp_harassment",
+      slug: "anti-harassment-workplace-conduct-eeo",
+      title: "Anti-Harassment & Workplace Conduct Policy",
+      description: "Mandatory corporate policy training on preventing unlawful harassment, discrimination, bystander intervention techniques, and safe retaliation-free reporting channels.",
+      category: "COMPLIANCE",
+      target_role: "ALL",
+      is_mandatory: 1,
+      estimated_minutes: 35,
+      renewal_period_days: 365,
+      passing_score_pct: 80,
+      version: "2026.1.0",
       is_published: 1,
     },
   ];
@@ -265,6 +315,65 @@ Zero-downtime deployments require strict progressive rollout phases:
       content: "Score 85% or higher to unlock production deployment credentials.",
       estimated_minutes: 25,
       version: "2.1.0",
+    },
+    {
+      id: "mod_osha_safety",
+      course_id: "crs_comp_osha",
+      title: "Workplace Hazard Communication & Emergency Standards",
+      description: "Comprehensive guide to OSHA hazard symbols, SDS sheets, and emergency action plans.",
+      order_index: 0,
+      type: "RICH_MARKDOWN",
+      content: `# OSHA Hazard Communication & Site Safety
+
+This regulatory standard establishes requirements for identifying and communicating hazardous conditions in the workplace.
+
+## Key Safety Tenets
+1. **Hazard Communication (GHS)**: All chemicals must have standardized pictograms and Safety Data Sheets (SDS).
+2. **Personal Protective Equipment (PPE)**: Inspect PPE before every shift.
+3. **Emergency Egress**: Keep fire exit pathways unobstructed at all times.
+
+## Incident Escalation
+Report any safety near-miss or injury to the Site Operations lead immediately.`,
+      estimated_minutes: 20,
+      version: "1.0.0",
+    },
+    {
+      id: "mod_hipaa_privacy",
+      course_id: "crs_comp_hipaa",
+      title: "HIPAA Privacy and Security Rule Compliance",
+      description: "Safeguards for protecting Electronic Protected Health Information (ePHI).",
+      order_index: 0,
+      type: "RICH_MARKDOWN",
+      content: `# HIPAA Security & Privacy Standards
+
+Under 45 CFR Part 160 and Part 164, corporate systems processing health data must enforce administrative, physical, and technical safeguards.
+
+## The Minimum Necessary Rule
+Only access or disclose the minimum amount of PHI required to perform your authorized job function.
+
+## Encryption & Access Control
+- All stored ePHI must utilize AES-256 encryption.
+- Multi-factor authentication is mandatory for any database access.`,
+      estimated_minutes: 25,
+      version: "1.0.0",
+    },
+    {
+      id: "mod_harass_conduct",
+      course_id: "crs_comp_harassment",
+      title: "Workplace Respect, Bystander Intervention & EEO",
+      description: "Maintaining a respectful, inclusive, and harassment-free enterprise work environment.",
+      order_index: 0,
+      type: "RICH_MARKDOWN",
+      content: `# Workplace Respect & Equal Opportunity
+
+Our enterprise strictly prohibits harassment, discrimination, and retaliation under Title VII and international labor laws.
+
+## Core Commitments
+1. **Professional Respect**: Treat all colleagues, partners, and customers with dignity.
+2. **Active Bystander Intervention**: Speak up or report whenever you observe unacceptable conduct.
+3. **No Retaliation**: Zero tolerance for retaliation against anyone reporting in good faith.`,
+      estimated_minutes: 20,
+      version: "1.0.0",
     },
   ];
 
@@ -613,6 +722,103 @@ Zero-downtime deployments require strict progressive rollout phases:
     "enr_marcus_sec",
     "usr_marcus_vance",
     "crs_sec_soc2_2026",
+    "COMPLETED",
+    100,
+    "usr_david_kim",
+    now,
+    dueDate30Days,
+    pastCompletedDate,
+    renewalExpiresDate,
+    pastCompletedDate,
+    pastCompletedDate
+  );
+
+  const pastDueDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Alex Rivera: Overdue on OSHA (creates real overdue flag for manager dashboard)
+  insertEnrollmentStmt.run(
+    "enr_alex_osha",
+    "usr_alex_rivera",
+    "crs_comp_osha",
+    "OVERDUE",
+    20,
+    "usr_sarah_jenkins",
+    now,
+    pastDueDate,
+    null,
+    null,
+    now,
+    now
+  );
+
+  // Alex Rivera: In-Progress on Anti-Harassment
+  insertEnrollmentStmt.run(
+    "enr_alex_harass",
+    "usr_alex_rivera",
+    "crs_comp_harassment",
+    "IN_PROGRESS",
+    50,
+    "usr_sarah_jenkins",
+    now,
+    dueDate30Days,
+    null,
+    null,
+    now,
+    now
+  );
+
+  // Elena Rostova: Completed OSHA and HIPAA
+  insertEnrollmentStmt.run(
+    "enr_elena_osha",
+    "usr_elena_rostova",
+    "crs_comp_osha",
+    "COMPLETED",
+    100,
+    "usr_sarah_jenkins",
+    now,
+    dueDate30Days,
+    pastCompletedDate,
+    renewalExpiresDate,
+    pastCompletedDate,
+    pastCompletedDate
+  );
+
+  insertEnrollmentStmt.run(
+    "enr_elena_hipaa",
+    "usr_elena_rostova",
+    "crs_comp_hipaa",
+    "COMPLETED",
+    100,
+    "usr_marcus_vance",
+    now,
+    dueDate30Days,
+    pastCompletedDate,
+    renewalExpiresDate,
+    pastCompletedDate,
+    pastCompletedDate
+  );
+
+  // Sarah Jenkins: Completed Anti-Harassment
+  insertEnrollmentStmt.run(
+    "enr_sarah_harass",
+    "usr_sarah_jenkins",
+    "crs_comp_harassment",
+    "COMPLETED",
+    100,
+    "usr_david_kim",
+    now,
+    dueDate30Days,
+    pastCompletedDate,
+    renewalExpiresDate,
+    pastCompletedDate,
+    pastCompletedDate
+  );
+
+  // Marcus Vance: Completed HIPAA
+  insertEnrollmentStmt.run(
+    "enr_marcus_hipaa",
+    "usr_marcus_vance",
+    "crs_comp_hipaa",
     "COMPLETED",
     100,
     "usr_david_kim",

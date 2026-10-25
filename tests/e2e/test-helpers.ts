@@ -372,6 +372,67 @@ export function seedTestDb(db: DatabaseSync): void {
     now
   );
 
+  // 5. Tech Safety Modules & Quiz
+  insertModule.run(
+    "mod_tech_canary",
+    "crs_tech_prod_safety",
+    "Canary Deployments & Automated Rollback Strategies",
+    "Best practices for progressive delivery and automated rollback.",
+    0,
+    "RICH_MARKDOWN",
+    "# Canary Deployments & Resilience Engineering\n\nAutomated Rollback Criteria:\n- HTTP 5xx error rate exceeds 0.05%",
+    25,
+    "2.1.0",
+    now,
+    now
+  );
+
+  insertModule.run(
+    "mod_tech_safety_quiz",
+    "crs_tech_prod_safety",
+    "Production Resilience & Safety Exam",
+    "Technical assessment for production access.",
+    1,
+    "INTERACTIVE_QUIZ",
+    "Score 85% or higher.",
+    25,
+    "2.1.0",
+    now,
+    now
+  );
+
+  insertQuiz.run("q_tech_1", "mod_tech_safety_quiz", "Production Resilience & Safety Exam", 85, 20, now, now);
+
+  insertQuestion.run(
+    "qq_tech_1",
+    "q_tech_1",
+    0,
+    "During a canary rollout, what automated action is triggered if the 5xx HTTP error rate spikes to 0.1%?",
+    "SINGLE_CHOICE",
+    JSON.stringify([
+      { id: "opt_1", text: "Traffic is routed to 100% to test scale" },
+      { id: "opt_2", text: "Automated instant rollback to previous stable release" },
+    ]),
+    JSON.stringify(["opt_2"]),
+    "Exceeding error budget triggers rollback.",
+    now
+  );
+
+  insertQuestion.run(
+    "qq_tech_2",
+    "q_tech_1",
+    1,
+    "True or False: Schema migrations that drop database columns can be run directly during peak production traffic.",
+    "TRUE_FALSE",
+    JSON.stringify([
+      { id: "opt_t", text: "True" },
+      { id: "opt_f", text: "False" },
+    ]),
+    JSON.stringify(["opt_f"]),
+    "Must use expand-and-contract pattern.",
+    now
+  );
+
   // Initial audit logs
   recordTestAuditEvent(db, {
     actorId: "usr_david_kim",
