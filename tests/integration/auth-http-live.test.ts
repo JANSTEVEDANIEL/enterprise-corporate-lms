@@ -1,5 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 
 describe("Adversarial Live HTTP Server — Auth & Session Resolution", () => {
@@ -9,16 +10,21 @@ describe("Adversarial Live HTTP Server — Auth & Session Resolution", () => {
 
   before(async () => {
     // Start Next.js production server on isolated port
-    serverProcess = spawn("npx", ["next", "start", "-p", String(PORT)], {
+    const nextBin = path.join(process.cwd(), "node_modules", ".bin", "next");
+    serverProcess = spawn(nextBin, ["start", "-p", String(PORT), "-H", "127.0.0.1"], {
       cwd: process.cwd(),
       env: { ...process.env, PORT: String(PORT), NODE_ENV: "production" },
       stdio: "pipe",
     });
 
+    let serverLogs = "";
+    serverProcess.stdout?.on("data", (d) => { serverLogs += d.toString(); });
+    serverProcess.stderr?.on("data", (d) => { serverLogs += d.toString(); });
+
     // Wait until server is ready to accept HTTP connections
     let ready = false;
-    for (let i = 0; i < 40; i++) {
-      await new Promise((res) => setTimeout(res, 300));
+    for (let i = 0; i < 60; i++) {
+      await new Promise((res) => setTimeout(res, 250));
       try {
         const res = await fetch(`${BASE_URL}/api/auth/session`);
         if (res.status === 200) {
@@ -32,7 +38,7 @@ describe("Adversarial Live HTTP Server — Auth & Session Resolution", () => {
 
     if (!ready) {
       serverProcess.kill("SIGKILL");
-      throw new Error(`Next.js server failed to start on port ${PORT}`);
+      throw new Error(`Next.js server failed to start on port ${PORT}. Logs: ${serverLogs}`);
     }
   });
 

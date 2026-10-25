@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { DatabaseSync } from "node:sqlite";
 import { getDb, initDb } from "@/lib/db";
 import { recordAuditEvent } from "@/lib/audit";
 import type { Certificate, Role } from "@/types";
@@ -39,9 +40,12 @@ export function generateCertificate(params: {
   score: number;
   actorRole?: Role;
   actorName?: string;
+  customDb?: DatabaseSync;
 }): Certificate {
-  initDb();
-  const db = getDb();
+  if (!params.customDb) {
+    initDb();
+  }
+  const db = params.customDb || getDb();
 
   // Check if certificate already exists for this enrollment
   const existingStmt = db.prepare("SELECT * FROM certificates WHERE enrollment_id = ?");
@@ -134,7 +138,7 @@ export function generateCertificate(params: {
       userEmail: user.email,
       expiresAt,
     },
-  });
+  }, params.customDb);
 
   return {
     id: certId,

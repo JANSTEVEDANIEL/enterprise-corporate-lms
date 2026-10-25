@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { DatabaseSync } from "node:sqlite";
 import { getDb, initDb } from "../db";
 import type { AuditLogRecord, Role } from "@/types";
 
@@ -67,9 +68,11 @@ export function computeRecordHash(payload: {
   return createHash("sha256").update(canonicalData).digest("hex");
 }
 
-export function recordAuditEvent(event: RecordAuditEventInput): AuditLogRecord {
-  initDb();
-  const db = getDb();
+export function recordAuditEvent(event: RecordAuditEventInput, customDb?: DatabaseSync): AuditLogRecord {
+  if (!customDb) {
+    initDb();
+  }
+  const db = customDb || getDb();
 
   let startedTransaction = false;
   try {
@@ -185,9 +188,11 @@ export interface AuditVerificationResult {
   lastTimestamp?: string | null;
 }
 
-export function verifyAuditLogIntegrity(): AuditVerificationResult {
-  initDb();
-  const db = getDb();
+export function verifyAuditLogIntegrity(customDb?: DatabaseSync): AuditVerificationResult {
+  if (!customDb) {
+    initDb();
+  }
+  const db = customDb || getDb();
 
   const stmt = db.prepare("SELECT * FROM audit_logs ORDER BY id ASC");
   const records = stmt.all() as unknown as AuditLogRecord[];
