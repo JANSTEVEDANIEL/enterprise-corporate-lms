@@ -51,8 +51,8 @@
 | M1 | Foundation & Core Full-Stack Architecture | Next.js 15, React 19, TypeScript, Tailwind CSS, SQLite schema, Seed data, RBAC session context, Persona Switcher | none | DONE (Gate PASSED: 163 tests, CLEAN audit) |
 | M2 | Learner Experience & Course Modules | Employee dashboard, Course catalog, Modular lesson player (markdown/video), Quiz engine & grading, Certificates, Analytics | M1 | DONE (worker_m2 completed: 180 tests pass) |
 | M3 | Management, Compliance & Audit Trail | Manager team dashboard, Compliance control center, Renewal engine, Tamper-evident SHA-256 audit logs, CSV/JSON exports, Admin UI | M1 | DONE (worker_m3 completed: 215 tests pass) |
-| M4 | Office Employee Persona Simulation & Automated Tests | Automated persona runners (Alex, Elena, Marcus), state transition assertions, `npm test` test suite | M2, M3 | IN_PROGRESS (conv: 254943e9) |
-| M5 | Final Acceptance, Dual-Track E2E Hardening & Production Build | Pass 100% of E2E Test Suite (Tiers 1-4), Adversarial hardening (Tier 5), `npm run build` zero-error compilation, Sentinel handoff | M4 | PLANNED |
+| M4 | Office Employee Persona Simulation & Automated Tests | Automated persona runners (Alex, Elena, Marcus), state transition assertions, `npm test` test suite | M2, M3 | DONE (worker_m4 completed: 243 tests pass, CLI & Web Console verified) |
+| M5 | Final Acceptance, Dual-Track E2E Hardening & Production Build | Pass 100% of E2E Test Suite (Tiers 1-4), Adversarial hardening (Tier 5), `npm run build` zero-error compilation, Sentinel handoff | M4 | IN_PROGRESS (gate verification active) |
 
 ## Interface Contracts
 

@@ -1,16 +1,12 @@
-# Gate Status — Milestone M1 (Iteration 1)
+# Gate Status — Milestone M5 (Final Acceptance & Full Verification)
 
-## Gate — Iteration 1
+## Gate — Milestone M5
 | Agent | Role | Verdict | Source |
 |-------|------|---------|--------|
-| worker_m1 | teamwork_preview_worker | DONE (build & 111 tests passed) | handoff.md |
-| reviewer_m1_1 | teamwork_preview_reviewer | APPROVE | handoff.md |
-| reviewer_m1_2 | teamwork_preview_reviewer | APPROVE | handoff.md |
-| challenger_m1_1 | teamwork_preview_challenger | APPROVE | handoff.md |
-| challenger_m1_2 | teamwork_preview_challenger | APPROVE | handoff.md |
-| auditor_m1 | teamwork_preview_auditor | CLEAN | handoff.md |
+| challenger_final_1 | teamwork_preview_challenger | PENDING | - |
+| challenger_final_2 | teamwork_preview_challenger | PENDING | - |
+| auditor_final | teamwork_preview_auditor | PENDING | - |
 
-Gate Result: **PASS**
-- Build: Passed (`npm run build` zero errors)
-- Tests: Passed (163/163 tests passed across 42 suites)
-- Audit: CLEAN (Zero cheating, genuine node:sqlite, triggers verified, SHA-256 Merkle chain verified, tamper detection verified)
+Gate Result: **IN_PROGRESS**
+- Scope: Adversarial Coverage Hardening (Tier 5), 100% Acceptance Criteria Verification, Full Platform Forensic Audit
+- Baseline: 243 passing tests across 68 suites, 3 office personas passing, 25 production routes compiled with 0 errors

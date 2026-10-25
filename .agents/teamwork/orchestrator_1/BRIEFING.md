@@ -1,4 +1,4 @@
-# BRIEFING — 2026-10-25T14:02:00Z
+# BRIEFING — 2026-10-25T16:41:00Z
 
 ## Mission
 Build a modern, production-grade Enterprise Corporate Learning Management System (LMS) with Next.js, React 19, TypeScript, Tailwind CSS, SQLite schema, RBAC, compliance audit trail, and synthetic persona simulation & tests.
@@ -18,7 +18,8 @@ Build a modern, production-grade Enterprise Corporate Learning Management System
    - Milestone M1: Passed gate review (CLEAN forensic audit, 163 tests passing).
    - Milestone M2: Completed by worker_m2 (180 tests passing, clean build).
    - Milestone M3: Completed by worker_m3 (215 tests passing, 24 routes, CSV/JSON export, Merkle chain check).
-   - Milestone M4: Dispatched to worker_m4 (conv: 254943e9-ff1b-4a1f-9183-b3e008b4197c).
+   - Milestone M4: Completed by worker_m4 (243 tests passing, 14 simulation steps pass, Web Console active).
+   - Milestone M5: Gate verification dispatched to 2 Challengers and 1 Forensic Auditor.
    - Track B: Complete (TEST_INFRA.md and TEST_READY.md published).
 3. **On failure**:
    - Retry: nudge stuck agent or re-send task
@@ -33,10 +34,10 @@ Build a modern, production-grade Enterprise Corporate Learning Management System
   3. Milestone M1: Core Schema & Full-Stack Foundation [done - GATE PASSED]
   4. Milestone M2: Learner Experience & Course Modules [done]
   5. Milestone M3: Management, Compliance & Audit Trail [done]
-  6. Milestone M4: Persona Simulation & Integration [in-progress]
-  7. Milestone M5: Final Acceptance & Full Verification [pending M4]
-- **Current phase**: 4 (Milestone M4 Execution)
-- **Current focus**: Implementing Office Employee Persona Simulation Suite (Alex, Elena, Marcus), CLI runner, and UI Console
+  6. Milestone M4: Persona Simulation & Integration [done]
+  7. Milestone M5: Final Acceptance & Full Verification [gate-verification]
+- **Current phase**: 5 (Milestone M5 Final Gate Verification)
+- **Current focus**: Adversarial Coverage Hardening, Acceptance Criteria Attestation, and Full Platform Forensic Audit
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -53,8 +54,9 @@ Build a modern, production-grade Enterprise Corporate Learning Management System
 ## Key Decisions Made
 - Milestone M1 passed gate with CLEAN audit.
 - Milestone M2 completed with 180 passing tests.
-- Milestone M3 completed with 215 passing tests across 61 suites, 24 routes, and atomic audit transactions.
-- Milestone M4 dispatched to worker_m4 for multi-persona simulation and verification.
+- Milestone M3 completed with 215 passing tests.
+- Milestone M4 completed with 243 passing tests across 68 suites, 3 persona simulation engines, CLI runner, and web console.
+- Milestone M5 dispatched to 2 Challengers and 1 Forensic Auditor.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -71,12 +73,15 @@ Build a modern, production-grade Enterprise Corporate Learning Management System
 | auditor_m1 | teamwork_preview_auditor | Milestone M1 Forensic Audit | completed (CLEAN) | 5d92e61a-3392-46f5-925a-f3c6c0a2feb0 |
 | worker_m2 | teamwork_preview_worker | Milestone M2: Learner Experience & Courses | completed | 4dd9abae-2eaf-4445-8081-27f6ef827c67 |
 | worker_m3 | teamwork_preview_worker | Milestone M3: Management & Compliance | completed | 38ab5d9b-b2b0-4c6b-9343-7edbc0892212 |
-| worker_m4 | teamwork_preview_worker | Milestone M4: Persona Simulation Suite | in-progress | 254943e9-ff1b-4a1f-9183-b3e008b4197c |
+| worker_m4 | teamwork_preview_worker | Milestone M4: Persona Simulation Suite | completed | 254943e9-ff1b-4a1f-9183-b3e008b4197c |
+| challenger_final_1 | teamwork_preview_challenger | M5 Final Hardening & Stress Testing | in-progress | f1e46985-0394-44c9-89a4-1237e3b906a1 |
+| challenger_final_2 | teamwork_preview_challenger | M5 Acceptance Criteria Verification | in-progress | 7fc50556-a766-4059-a59d-b970ca673eb4 |
+| auditor_final | teamwork_preview_auditor | M5 Full Platform Forensic Audit | in-progress | 34f3c9a4-c169-4704-93ec-1b57b7be1a73 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 13 / 16
-- Pending subagents: 254943e9-ff1b-4a1f-9183-b3e008b4197c (worker_m4)
+- Spawn count: 16 / 16 (threshold reached, will self-succeed upon completion of current subagents)
+- Pending subagents: f1e46985, 7fc50556, 34f3c9a4
 - Predecessor: none
 - Successor: not yet spawned
 
