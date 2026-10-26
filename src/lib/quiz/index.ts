@@ -57,6 +57,59 @@ export function evaluateQuiz(
   const quizStmt = db.prepare("SELECT * FROM quizzes WHERE id = ?");
   const quiz = quizStmt.get(quizId) as any;
   if (!quiz) {
+    // Check week_quizzes table (Milestone 3 & 5 weekly knowledge checks)
+    try {
+      const wqStmt = db.prepare("SELECT * FROM week_quizzes WHERE id = ?");
+      const wq = wqStmt.get(quizId) as any;
+      if (wq) {
+        let questions: any[] = [];
+        try {
+          questions = typeof wq.questions === "string" ? JSON.parse(wq.questions) : wq.questions;
+        } catch {
+          questions = [];
+        }
+        let correctCount = 0;
+        const feedbackList: QuestionFeedback[] = [];
+
+        for (const q of questions) {
+          const userAnswer = answers[q.id];
+          const correctIdx = typeof q.correct_index === "number" ? q.correct_index : 0;
+          const correctOption = Array.isArray(q.options) && q.options[correctIdx] !== undefined ? q.options[correctIdx] : "";
+
+          let isCorrect = false;
+          if (userAnswer !== undefined && userAnswer !== null) {
+            if (typeof userAnswer === "number") {
+              isCorrect = userAnswer === correctIdx;
+            } else if (typeof userAnswer === "string") {
+              isCorrect =
+                userAnswer === String(correctIdx) ||
+                userAnswer.trim().toLowerCase() === correctOption.trim().toLowerCase();
+            }
+          }
+
+          if (isCorrect) correctCount++;
+
+          feedbackList.push({
+            questionId: q.id,
+            prompt: q.prompt,
+            userAnswer: userAnswer ?? "",
+            correctAnswer: [correctOption],
+            isCorrect,
+            explanation: q.explanation || `Correct answer is: ${correctOption}`,
+          });
+        }
+
+        const scorePct = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 100;
+        return {
+          scorePct,
+          passed: scorePct >= (wq.passing_score_pct || 80),
+          correctCount,
+          totalCount: questions.length,
+          passingScorePct: wq.passing_score_pct || 80,
+          results: feedbackList,
+        };
+      }
+    } catch {}
     throw new Error(`Quiz '${quizId}' not found in database`);
   }
 
@@ -190,20 +243,35 @@ export function submitQuizAttempt(params: SubmitQuizAttemptParams): SubmitQuizAt
   // 1. Evaluate quiz
   const evaluation = evaluateQuiz(params.quizId, params.answers, db);
 
-  // 2. Fetch quiz and module to get course info
+  // 2. Fetch quiz and module/week to get course info
   const quizStmt = db.prepare("SELECT * FROM quizzes WHERE id = ?");
-  const quiz = quizStmt.get(params.quizId) as any;
-  if (!quiz) {
-    throw new Error(`Quiz ${params.quizId} not found`);
-  }
+  let quiz = quizStmt.get(params.quizId) as any;
+  let moduleId = "";
+  let courseId = "";
+  let moduleRow: any = null;
+  let isModule = false;
 
-  const moduleStmt = db.prepare("SELECT * FROM modules WHERE id = ?");
-  const moduleRow = moduleStmt.get(quiz.module_id) as any;
-  if (!moduleRow) {
-    throw new Error(`Module ${quiz.module_id} not found`);
+  if (quiz) {
+    const moduleStmt = db.prepare("SELECT * FROM modules WHERE id = ?");
+    moduleRow = moduleStmt.get(quiz.module_id) as any;
+    if (!moduleRow) {
+      throw new Error(`Module ${quiz.module_id} not found`);
+    }
+    moduleId = moduleRow.id;
+    courseId = moduleRow.course_id;
+    isModule = true;
+  } else {
+    const wqStmt = db.prepare("SELECT * FROM week_quizzes WHERE id = ?");
+    const wq = wqStmt.get(params.quizId) as any;
+    if (!wq) {
+      throw new Error(`Quiz ${params.quizId} not found`);
+    }
+    quiz = wq;
+    moduleId = wq.week_id;
+    courseId = wq.course_id;
+    moduleRow = { id: wq.week_id, version: "1.0.0" };
+    isModule = false;
   }
-
-  const courseId = moduleRow.course_id;
 
   // 3. Resolve enrollment
   const enrollmentStmt = db.prepare("SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?");
@@ -223,33 +291,37 @@ export function submitQuizAttempt(params: SubmitQuizAttemptParams): SubmitQuizAt
     enrollment = db.prepare("SELECT * FROM enrollments WHERE id = ?").get(enrollmentId) as any;
   }
 
-  // 4. Calculate attempt number
-  const attemptCountStmt = db.prepare(`
-    SELECT COUNT(*) as count FROM quiz_submissions 
-    WHERE enrollment_id = ? AND module_id = ?
-  `);
-  const attemptCount = (attemptCountStmt.get(enrollment.id, moduleRow.id) as any).count;
-  const attemptNumber = attemptCount + 1;
-
-  // 5. Insert quiz_submissions record
   const submissionId = `qs_${randomUUID()}`;
-  db.prepare(`
-    INSERT INTO quiz_submissions (
-      id, enrollment_id, module_id, user_id, score, passed, attempt_number,
-      answers_payload, feedback_payload, submitted_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    submissionId,
-    enrollment.id,
-    moduleRow.id,
-    params.userId,
-    evaluation.scorePct,
-    evaluation.passed ? 1 : 0,
-    attemptNumber,
-    JSON.stringify(params.answers),
-    JSON.stringify(evaluation),
-    now
-  );
+  let attemptNumber = 1;
+
+  if (isModule) {
+    // 4. Calculate attempt number
+    const attemptCountStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM quiz_submissions 
+      WHERE enrollment_id = ? AND module_id = ?
+    `);
+    const attemptCount = (attemptCountStmt.get(enrollment.id, moduleId) as any).count;
+    attemptNumber = attemptCount + 1;
+
+    // 5. Insert quiz_submissions record
+    db.prepare(`
+      INSERT INTO quiz_submissions (
+        id, enrollment_id, module_id, user_id, score, passed, attempt_number,
+        answers_payload, feedback_payload, submitted_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      submissionId,
+      enrollment.id,
+      moduleId,
+      params.userId,
+      evaluation.scorePct,
+      evaluation.passed ? 1 : 0,
+      attemptNumber,
+      JSON.stringify(params.answers),
+      JSON.stringify(evaluation),
+      now
+    );
+  }
 
   // 6. Record audit event
   const auditAction = evaluation.passed ? "QUIZ_PASSED" : "QUIZ_FAILED";
@@ -258,11 +330,11 @@ export function submitQuizAttempt(params: SubmitQuizAttemptParams): SubmitQuizAt
     actorRole: params.actorRole || "EMPLOYEE",
     actorName: params.actorName,
     action: auditAction,
-    targetType: "QUIZ",
+    targetType: isModule ? "QUIZ" : "WEEK_QUIZ",
     targetId: params.quizId,
     courseId,
-    moduleId: moduleRow.id,
-    moduleVersion: moduleRow.version,
+    moduleId: isModule ? moduleRow.id : null,
+    moduleVersion: isModule ? moduleRow.version : null,
     score: evaluation.scorePct,
     details: {
       attemptNumber,
@@ -274,11 +346,11 @@ export function submitQuizAttempt(params: SubmitQuizAttemptParams): SubmitQuizAt
     ipAddress: params.ipAddress,
   });
 
-  // 7. If passed, update module progress
+  // 7. If passed and isModule, update module progress
   let certificate: Certificate | null = null;
   let finalProgressPct = enrollment.progress_pct;
 
-  if (evaluation.passed) {
+  if (evaluation.passed && isModule) {
     // Record or update module_progress
     const mpExisting = db.prepare(`
       SELECT * FROM module_progress WHERE enrollment_id = ? AND module_id = ?
@@ -306,7 +378,7 @@ export function submitQuizAttempt(params: SubmitQuizAttemptParams): SubmitQuizAt
     const totalModules = allModules.length;
 
     const completedStmt = db.prepare(`
-      SELECT COUNT(DISTINCT module_id) as count FROM module_progress
+      SELECT COUNT(DISTINCT module_id) as count FROM module_progress 
       WHERE enrollment_id = ? AND status = 'COMPLETED'
     `);
     const completedCount = (completedStmt.get(enrollment.id) as any).count;

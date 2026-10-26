@@ -16,6 +16,16 @@ function getCategoryCode(category: string): string {
       return "TECH";
     case "LEADERSHIP":
       return "LEAD";
+    case "MARKETING":
+      return "MKT";
+    case "SOFTWARE":
+      return "SW";
+    case "BUSINESS":
+      return "BIZ";
+    case "DESIGN":
+      return "DSGN";
+    case "DATA_SCIENCE":
+      return "DATA";
     default:
       return "CORP";
   }
@@ -41,6 +51,7 @@ export function generateCertificate(params: {
   actorRole?: Role;
   actorName?: string;
   customDb?: DatabaseSync;
+  codePrefix?: string;
 }): Certificate {
   if (!params.customDb) {
     initDb();
@@ -68,11 +79,13 @@ export function generateCertificate(params: {
     throw new Error(`User ${params.userId} not found`);
   }
 
-  // Generate certificate code matching /^CERT-\d{4}-[A-Z]+-\d+$/
+  // Generate certificate code (e.g. CERT-MKT-YYYY-... or CERT-YYYY-CAT-...)
   const year = new Date().getFullYear();
   const catCode = getCategoryCode(course.category);
   const randomSerial = Math.floor(10000 + Math.random() * 90000);
-  const certificateCode = `CERT-${year}-${catCode}-${randomSerial}`;
+  const certificateCode = params.codePrefix
+    ? `${params.codePrefix}-${year}-${randomSerial}`
+    : `CERT-${year}-${catCode}-${randomSerial}`;
 
   const certId = `cert_${randomUUID()}`;
   const now = new Date().toISOString();

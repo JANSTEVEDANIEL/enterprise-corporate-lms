@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   avatar_url TEXT,
-  role TEXT NOT NULL CHECK (role IN ('EMPLOYEE', 'MANAGER', 'COMPLIANCE_OFFICER', 'SUPER_ADMIN')),
+  role TEXT NOT NULL CHECK (role IN ('EMPLOYEE', 'MANAGER', 'COMPLIANCE_OFFICER', 'SUPER_ADMIN', 'STUDENT', 'CO_ADMIN')),
   department TEXT NOT NULL,
   job_title TEXT NOT NULL,
   manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS courses (
   slug TEXT UNIQUE NOT NULL,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('ONBOARDING', 'COMPLIANCE', 'SECURITY', 'TECHNICAL_UPSKILLING', 'LEADERSHIP')),
+  category TEXT NOT NULL CHECK (category IN ('ONBOARDING', 'COMPLIANCE', 'SECURITY', 'TECHNICAL_UPSKILLING', 'LEADERSHIP', 'SOFTWARE', 'BUSINESS', 'DESIGN', 'MARKETING', 'DATA_SCIENCE')),
   target_role TEXT NOT NULL DEFAULT 'ALL',
   is_mandatory INTEGER NOT NULL DEFAULT 0 CHECK (is_mandatory IN (0, 1)),
   estimated_minutes INTEGER NOT NULL DEFAULT 30,
@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS courses (
   passing_score_pct INTEGER NOT NULL DEFAULT 80,
   version TEXT NOT NULL DEFAULT '1.0.0',
   is_published INTEGER NOT NULL DEFAULT 1 CHECK (is_published IN (0, 1)),
+  creator_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  price_cents INTEGER NOT NULL DEFAULT 0 CHECK (price_cents >= 0),
+  thumbnail_url TEXT,
+  total_weeks INTEGER NOT NULL DEFAULT 1 CHECK (total_weeks >= 1),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -102,10 +106,10 @@ CREATE TABLE IF NOT EXISTS enrollments (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'EXPIRED', 'OVERDUE')),
+  status TEXT NOT NULL CHECK (status IN ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'EXPIRED', 'OVERDUE', 'ACTIVE')),
   progress_pct INTEGER NOT NULL DEFAULT 0 CHECK (progress_pct BETWEEN 0 AND 100),
   assigned_by TEXT REFERENCES users(id) ON DELETE SET NULL,
-  assigned_at TEXT NOT NULL,
+  assigned_at TEXT,
   due_date TEXT,
   completed_at TEXT,
   expires_at TEXT,
@@ -213,4 +217,131 @@ BEFORE DELETE ON audit_logs
 BEGIN 
   SELECT RAISE(ABORT, 'Audit log records are immutable and cannot be deleted'); 
 END;
+
+-- 11. WEEKS TABLE (Sequential 1 to 7+)
+CREATE TABLE IF NOT EXISTS weeks (
+  id TEXT PRIMARY KEY,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  week_number INTEGER NOT NULL CHECK (week_number >= 1),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(course_id, week_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_weeks_course ON weeks(course_id);
+
+-- 12. LESSONS TABLE (With video_url and supplementary_files)
+CREATE TABLE IF NOT EXISTS lessons (
+  id TEXT PRIMARY KEY,
+  week_id TEXT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  order_index INTEGER NOT NULL CHECK (order_index >= 1),
+  duration_seconds INTEGER NOT NULL DEFAULT 0 CHECK (duration_seconds >= 0),
+  video_url TEXT,
+  supplementary_files TEXT NOT NULL DEFAULT '[]',
+  is_preview INTEGER NOT NULL DEFAULT 0 CHECK (is_preview IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(week_id, order_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lessons_week ON lessons(week_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
+
+-- 12B. WEEK QUIZZES TABLE (Weekly knowledge checks)
+CREATE TABLE IF NOT EXISTS week_quizzes (
+  id TEXT PRIMARY KEY,
+  week_id TEXT UNIQUE NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  passing_score_pct INTEGER NOT NULL DEFAULT 80,
+  questions TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_week_quizzes_week ON week_quizzes(week_id);
+CREATE INDEX IF NOT EXISTS idx_week_quizzes_course ON week_quizzes(course_id);
+
+-- 13. WALLETS TABLE ($500 pre-funded balance = 50000 cents)
+CREATE TABLE IF NOT EXISTS wallets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  balance INTEGER NOT NULL DEFAULT 50000 CHECK (balance >= 0),
+  balance_cents INTEGER NOT NULL DEFAULT 50000 CHECK (balance_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);
+
+-- 14. TRANSACTIONS TABLE (10% platform, 90% creator cut)
+CREATE TABLE IF NOT EXISTS transactions (
+  id TEXT PRIMARY KEY,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL CHECK (amount >= 0),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
+  platform_fee INTEGER NOT NULL CHECK (platform_fee >= 0),
+  platform_fee_cents INTEGER NOT NULL CHECK (platform_fee_cents >= 0),
+  creator_earnings INTEGER NOT NULL CHECK (creator_earnings >= 0),
+  creator_payout_cents INTEGER NOT NULL CHECK (creator_payout_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  status TEXT NOT NULL DEFAULT 'COMPLETED' CHECK (status IN ('COMPLETED', 'REFUNDED', 'FAILED')),
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_course ON transactions(course_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_student ON transactions(student_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_creator ON transactions(creator_id);
+
+-- 15. PAYOUTS TABLE (Simulated Request Payout Flow)
+CREATE TABLE IF NOT EXISTS payouts (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSED', 'REJECTED')),
+  requested_at TEXT NOT NULL,
+  processed_at TEXT,
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_payouts_creator ON payouts(creator_id);
+
+CREATE TABLE IF NOT EXISTS payout_requests (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSED', 'REJECTED')),
+  created_at TEXT NOT NULL,
+  requested_at TEXT,
+  processed_at TEXT,
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_payout_requests_creator ON payout_requests(creator_id);
+
+-- 16. LESSON PROGRESS TABLE
+CREATE TABLE IF NOT EXISTS lesson_progress (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  lesson_id TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'NOT_STARTED' CHECK (status IN ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED')),
+  completed_at TEXT,
+  last_position_seconds INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(user_id, lesson_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lesson_progress_user ON lesson_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_lesson_progress_lesson ON lesson_progress(lesson_id);
 `;

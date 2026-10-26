@@ -94,6 +94,8 @@ export function UserManagementClient({
     COMPLIANCE_OFFICER: { bg: "bg-emerald-100 text-emerald-800 border-emerald-200", label: "Compliance Officer" },
     MANAGER: { bg: "bg-blue-100 text-blue-800 border-blue-200", label: "Manager" },
     EMPLOYEE: { bg: "bg-slate-100 text-slate-700 border-slate-200", label: "Employee" },
+    STUDENT: { bg: "bg-amber-100 text-amber-800 border-amber-200", label: "Student" },
+    CO_ADMIN: { bg: "bg-indigo-100 text-indigo-800 border-indigo-200", label: "Co-Admin" },
   };
 
   const openEditModal = (user: UserRecord) => {

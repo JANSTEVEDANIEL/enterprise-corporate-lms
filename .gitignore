@@ -23,7 +23,12 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
+.env*
 .env*.local
+.env.local
+*.env
+!.env.example
 
 # vercel
 .vercel
@@ -31,6 +36,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agents scratch & teamwork logs
+/.agents/
+.agents/
 
 # database
 .data/*.db

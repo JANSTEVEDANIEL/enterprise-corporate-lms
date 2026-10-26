@@ -33,6 +33,18 @@ const ROLE_BADGE_STYLES: Record<Role, { bg: string; text: string; border: string
     border: "border-rose-200",
     label: "Super Admin",
   },
+  STUDENT: {
+    bg: "bg-amber-50 text-amber-700",
+    text: "text-amber-700",
+    border: "border-amber-200",
+    label: "Student",
+  },
+  CO_ADMIN: {
+    bg: "bg-indigo-50 text-indigo-700",
+    text: "text-indigo-700",
+    border: "border-indigo-200",
+    label: "Co-Admin",
+  },
 };
 
 export function PersonaSwitcher({ initialUser }: PersonaSwitcherProps) {

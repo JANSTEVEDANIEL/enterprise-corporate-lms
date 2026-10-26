@@ -3,12 +3,13 @@ import { randomUUID } from "node:crypto";
 import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser, hasPermission } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit";
+import { sanitizeCourseCatalogForRole } from "@/lib/privacy";
 
 export async function GET(request: NextRequest) {
   try {
     initDb();
     const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
 
     if (!hasPermission(currentUser.role, "MANAGER")) {
       return NextResponse.json(
@@ -27,11 +28,12 @@ export async function GET(request: NextRequest) {
       ORDER BY c.created_at DESC
     `);
     const courses = coursesStmt.all();
+    const sanitizedCourses = sanitizeCourseCatalogForRole(courses, currentUser.role);
 
     return NextResponse.json({
       success: true,
-      courses,
-      totalCount: courses.length,
+      courses: sanitizedCourses,
+      totalCount: sanitizedCourses.length,
     });
   } catch (error: any) {
     console.error("GET /api/admin/courses error:", error);

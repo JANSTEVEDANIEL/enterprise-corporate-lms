@@ -869,6 +869,510 @@ Our enterprise strictly prohibits harassment, discrimination, and retaliation un
     });
   }
 
+  // 10. Seed Marketplace Personas & Creator Studio Data
+  try {
+    const insertMarketplaceUser = db.prepare(`
+      INSERT OR IGNORE INTO users (id, email, name, avatar_url, role, department, job_title, manager_id, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1, ?, ?)
+    `);
+    insertMarketplaceUser.run(
+      "usr_aris_thorne",
+      "aris.thorne@enterprise.corp",
+      "Dr. Aris Thorne",
+      "/avatars/aris.jpg",
+      "CO_ADMIN",
+      "Curriculum & Engineering",
+      "Principal Cloud Architect & Lead Instructor",
+      now,
+      now
+    );
+    insertMarketplaceUser.run(
+      "usr_sophia_chen",
+      "sophia.chen@enterprise.corp",
+      "Sophia Chen",
+      "/avatars/sophia.jpg",
+      "STUDENT",
+      "Engineering",
+      "Software Engineer Intern",
+      now,
+      now
+    );
+
+    // Wallets
+    const insertWallet = db.prepare(`
+      INSERT OR REPLACE INTO wallets (id, user_id, balance, balance_cents, currency, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'USD', ?, ?)
+    `);
+    insertWallet.run("wal_usr_aris_thorne", "usr_aris_thorne", 12820, 12820, now, now);
+    insertWallet.run("wal_usr_sophia_chen", "usr_sophia_chen", 50000, 50000, now, now);
+    insertWallet.run("wal_usr_alex_rivera", "usr_alex_rivera", 40100, 40100, now, now);
+
+    // Seed 7-Week Creator Course
+    const insertCourse = db.prepare(`
+      INSERT OR REPLACE INTO courses (
+        id, slug, title, description, category, target_role, is_mandatory,
+        estimated_minutes, renewal_period_days, passing_score_pct, version,
+        is_published, creator_id, price_cents, thumbnail_url, total_weeks, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, 'ALL', 0,
+        ?, NULL, 80, '1.0.0',
+        ?, ?, ?, ?, ?, ?, ?
+      )
+    `);
+
+    insertCourse.run(
+      "crs_cloud_arch_7w",
+      "cloud-native-architecture-distributed-systems",
+      "Cloud Native Architecture & Distributed Systems",
+      "Master modern cloud engineering across 7 sequential weeks: distributed state, microservices networking, Kubernetes orchestration, event streaming, and chaos resilience.",
+      "SOFTWARE",
+      420,
+      1,
+      "usr_aris_thorne",
+      9900,
+      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80",
+      7,
+      now,
+      now
+    );
+
+    insertCourse.run(
+      "crs_ai_agents_prod",
+      "production-ai-agents-autonomous-workflows",
+      "Production AI Agents & Autonomous Workflows",
+      "Comprehensive 4-week roadmap to architecting enterprise multi-agent swarms with tool use, guardrails, and deterministic testing.",
+      "SOFTWARE",
+      240,
+      0,
+      "usr_aris_thorne",
+      14900,
+      "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop&q=80",
+      4,
+      now,
+      now
+    );
+
+    insertCourse.run(
+      "crs_fullstack_ai_8w",
+      "fullstack-ai-engineering-production-llm",
+      "Full-Stack AI Engineering & Production LLM Deployment",
+      "Build enterprise-grade RAG systems, agentic workflows, fine-tuned models, and low-latency inference pipelines with privacy shields.",
+      "DATA_SCIENCE",
+      480,
+      1,
+      "usr_aris_thorne",
+      14900,
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80",
+      8,
+      now,
+      now
+    );
+
+    insertCourse.run(
+      "crs_zerotrust_sec_6w",
+      "zero-trust-cloud-security-devsecops",
+      "Zero-Trust Cloud Security & DevSecOps Mastery",
+      "Implement end-to-end zero-trust architecture, cryptographic identity federation, automated container scanning, and threat modeling.",
+      "SECURITY",
+      360,
+      1,
+      "usr_elena_rostova",
+      7900,
+      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=80",
+      6,
+      now,
+      now
+    );
+
+    insertCourse.run(
+      "crs_git_free_1w",
+      "git-github-essentials",
+      "Git & GitHub Essentials for Open-Source Collaboration",
+      "Fast-paced foundational cohort covering branching strategies, pull requests, interactive rebasing, and merge conflict resolution.",
+      "SOFTWARE",
+      60,
+      1,
+      "usr_aris_thorne",
+      0,
+      "https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=800&auto=format&fit=crop&q=80",
+      1,
+      now,
+      now
+    );
+
+    // Seed Weeks 1 to 7 for crs_cloud_arch_7w
+    const insertWeek = db.prepare(`
+      INSERT OR REPLACE INTO weeks (id, course_id, week_number, title, description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertLesson = db.prepare(`
+      INSERT OR REPLACE INTO lessons (
+        id, week_id, course_id, title, order_index, duration_seconds,
+        video_url, supplementary_files, is_preview, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertWeekQuiz = db.prepare(`
+      INSERT OR REPLACE INTO week_quizzes (
+        id, week_id, course_id, title, passing_score_pct, questions, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const cloudWeeks = [
+      {
+        num: 1,
+        title: "Week 1: Core Architectural Foundations & Microservices",
+        desc: "Deconstructing monoliths, domain boundaries, synchronous vs asynchronous communication.",
+        lessons: [
+          {
+            title: "Lesson 1.1: Microservices Topology & Boundaries",
+            order: 1,
+            sec: 1200,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            preview: 1,
+            files: [{ name: "Domain_Driven_Design_CheatSheet.pdf", file_url: "https://storage.edtech.market/files/ddd.pdf", url: "https://storage.edtech.market/files/ddd.pdf", file_size_bytes: 1048576, size_bytes: 1048576, file_type: "PDF" }],
+          },
+          {
+            title: "Lesson 1.2: API Gateways and Service Mesh Routing",
+            order: 2,
+            sec: 1450,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+            preview: 0,
+            files: [{ name: "Gateway_Config_Templates.zip", file_url: "https://storage.edtech.market/files/gateway.zip", url: "https://storage.edtech.market/files/gateway.zip", file_size_bytes: 2097152, size_bytes: 2097152, file_type: "ZIP" }],
+          },
+        ],
+        quizTitle: "Week 1 Knowledge Check: Microservices & Gateways",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w1_1",
+            prompt: "What is the primary benefit of a service mesh sidecar proxy pattern?",
+            options: ["Offloads mTLS, telemetry, and traffic control from application code", "Increases database query throughput by caching SQL results", "Replaces the underlying Linux operating system kernel", "Automates frontend UI component rendering"],
+            correct_index: 0,
+            explanation: "Sidecar proxies decouple operational cross-cutting concerns like mTLS encryption, metrics collection, and routing from core service logic."
+          },
+          {
+            id: "q_w1_2",
+            prompt: "Under the CAP theorem, what does a partition-tolerant system choose during a network split?",
+            options: ["Either Consistency or Availability", "Both Consistency and Availability simultaneously", "Latency over Durability", "Zero data replication"],
+            correct_index: 0,
+            explanation: "When network partitions occur, distributed systems must trade off between strict consistency (CP) or high availability (AP)."
+          }
+        ]
+      },
+      {
+        num: 2,
+        title: "Week 2: Containerization & Kubernetes Orchestration",
+        desc: "Docker container internals, Kubernetes pods, replica controllers, and declarative deployments.",
+        lessons: [
+          {
+            title: "Lesson 2.1: Multi-Stage Docker Builds & OCI Images",
+            order: 1,
+            sec: 1350,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            preview: 0,
+            files: [{ name: "Dockerfile_Best_Practices.pdf", file_url: "https://storage.edtech.market/files/docker.pdf", url: "https://storage.edtech.market/files/docker.pdf", file_size_bytes: 524288, size_bytes: 524288, file_type: "PDF" }],
+          },
+          {
+            title: "Lesson 2.2: Kubernetes Scheduling & Resource Limits",
+            order: 2,
+            sec: 1600,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+            preview: 0,
+            files: [],
+          },
+        ],
+        quizTitle: "Week 2 Knowledge Check: Container & K8s Architecture",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w2_1",
+            prompt: "Why should production containers avoid running as root user?",
+            options: ["To minimize container breakout attack blast radius", "Because root users cannot access network sockets", "Kubernetes rejects root containers automatically", "Root containers consume twice the RAM"],
+            correct_index: 0,
+            explanation: "Running as non-root mitigates privilege escalation in case of container escapes."
+          }
+        ]
+      },
+      {
+        num: 3,
+        title: "Week 3: Event-Driven Architectures & Message Brokers",
+        desc: "Kafka partitioning, RabbitMQ exchange patterns, idempotency, and transactional outbox.",
+        lessons: [
+          {
+            title: "Lesson 3.1: Log-Based Message Streaming with Apache Kafka",
+            order: 1,
+            sec: 1800,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+            preview: 0,
+            files: [{ name: "Transactional_Outbox_Schema.sql", file_url: "https://storage.edtech.market/files/outbox.sql", url: "https://storage.edtech.market/files/outbox.sql", file_size_bytes: 12400, size_bytes: 12400, file_type: "DOCUMENT" }],
+          },
+        ],
+        quizTitle: "Week 3 Knowledge Check: Streaming & Idempotency",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w3_1",
+            prompt: "What pattern prevents duplicate side-effects when consuming at-least-once message streams?",
+            options: ["Idempotent consumer with deduplication keys", "Disabling Kafka consumer commits", "Increasing producer batch size", "Using HTTP polling instead"],
+            correct_index: 0,
+            explanation: "Idempotent consumers record processed event IDs to prevent duplicate application state mutations."
+          }
+        ]
+      },
+      {
+        num: 4,
+        title: "Week 4: Distributed Data, Sharding & Consistency Models",
+        desc: "ACID vs BASE, multi-region database replication, vector clocks, and conflict resolution.",
+        lessons: [
+          {
+            title: "Lesson 4.1: Database Sharding Strategies & Key Distribution",
+            order: 1,
+            sec: 1400,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
+            preview: 0,
+            files: [],
+          },
+        ],
+        quizTitle: "Week 4 Knowledge Check: Sharding & Consistency",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w4_1",
+            prompt: "What is consistent hashing primarily used for in distributed cache clusters?",
+            options: ["Minimizing key reshuffling when cache nodes are added or removed", "Encrypting database passwords in transit", "Compressing JSON payload sizes", "Synchronizing local server wall clocks"],
+            correct_index: 0,
+            explanation: "Consistent hashing maps both nodes and keys to a ring, minimizing remapping during node membership changes."
+          }
+        ]
+      },
+      {
+        num: 5,
+        title: "Week 5: Distributed Caching & Performance Optimization",
+        desc: "Redis clustering, write-through vs cache-aside, cache stampede mitigation, and TTL invalidation.",
+        lessons: [
+          {
+            title: "Lesson 5.1: Redis Cluster Topology and Slot Allocation",
+            order: 1,
+            sec: 1550,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+            preview: 0,
+            files: [],
+          },
+        ],
+        quizTitle: "Week 5 Knowledge Check: Distributed Caching",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w5_1",
+            prompt: "How does the cache-aside pattern handle a read miss?",
+            options: ["Application fetches from DB, writes to cache, and returns result", "Database automatically populates the cache asynchronously", "Cache queries the database directly over raw TCP", "Request fails with 404 cache miss"],
+            correct_index: 0,
+            explanation: "In cache-aside (lazy loading), the application reads cache; on miss, reads DB, stores in cache, and returns."
+          }
+        ]
+      },
+      {
+        num: 6,
+        title: "Week 6: Security, Zero Trust & Secret Management",
+        desc: "OAuth 2.1, JWT validation, HashiCorp Vault dynamic secrets, and mutual TLS.",
+        lessons: [
+          {
+            title: "Lesson 6.1: Zero Trust Service-to-Service Authentication",
+            order: 1,
+            sec: 1650,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+            preview: 0,
+            files: [{ name: "Vault_AppRole_Setup.pdf", file_url: "https://storage.edtech.market/files/vault.pdf", url: "https://storage.edtech.market/files/vault.pdf", file_size_bytes: 840000, size_bytes: 840000, file_type: "PDF" }],
+          },
+        ],
+        quizTitle: "Week 6 Knowledge Check: Zero Trust & Security",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w6_1",
+            prompt: "What is the core principle of Zero Trust Architecture?",
+            options: ["Never trust, always verify, regardless of network perimeter", "Trust all traffic within the corporate intranet", "Authenticate once at VPN login and never re-check", "Rely entirely on IP address whitelists"],
+            correct_index: 0,
+            explanation: "Zero Trust treats all requests as potentially hostile, requiring explicit authentication and authorization."
+          }
+        ]
+      },
+      {
+        num: 7,
+        title: "Week 7: Chaos Engineering, Observability & High Availability",
+        desc: "Prometheus metrics, OpenTelemetry tracing, Chaos Mesh experiments, and blast-radius containment.",
+        lessons: [
+          {
+            title: "Lesson 7.1: Chaos Experiments: Simulating Network Latency and Pod Failures",
+            order: 1,
+            sec: 1750,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4",
+            preview: 0,
+            files: [{ name: "Chaos_Mesh_Manifests.zip", file_url: "https://storage.edtech.market/files/chaos.zip", url: "https://storage.edtech.market/files/chaos.zip", file_size_bytes: 1540000, size_bytes: 1540000, file_type: "ZIP" }],
+          },
+          {
+            title: "Lesson 7.2: Distributed Tracing & Distributed Incident Response",
+            order: 2,
+            sec: 1900,
+            video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+            preview: 0,
+            files: [],
+          },
+        ],
+        quizTitle: "Week 7 Knowledge Check: Chaos Resilience & Observability",
+        passingScore: 80,
+        questions: [
+          {
+            id: "q_w7_1",
+            prompt: "What is the primary goal of Chaos Engineering?",
+            options: ["Building confidence in system resilience by proactively discovering weaknesses", "Deliberately causing unplanned user-facing outages during peak hours", "Replacing all automated unit tests", "Testing if engineers can wake up during on-call rotation"],
+            correct_index: 0,
+            explanation: "Chaos Engineering experiments reveal systemic vulnerabilities before they manifest as critical real-world outages."
+          }
+        ]
+      }
+    ];
+
+    for (const w of cloudWeeks) {
+      const weekId = `wk_cloud_w${w.num}`;
+      insertWeek.run(weekId, "crs_cloud_arch_7w", w.num, w.title, w.desc, now, now);
+      for (const les of w.lessons) {
+        insertLesson.run(
+          `les_cloud_w${w.num}_${les.order}`,
+          weekId,
+          "crs_cloud_arch_7w",
+          les.title,
+          les.order,
+          les.sec,
+          les.video,
+          JSON.stringify(les.files),
+          les.preview,
+          now,
+          now
+        );
+      }
+      insertWeekQuiz.run(
+        `qz_cloud_w${w.num}`,
+        weekId,
+        "crs_cloud_arch_7w",
+        w.quizTitle,
+        w.passingScore,
+        JSON.stringify(w.questions),
+        now,
+        now
+      );
+    }
+
+    // Seed Weeks 1 to 4 for crs_ai_agents_prod (Draft)
+    for (let w = 1; w <= 4; w++) {
+      const weekId = `wk_agents_w${w}`;
+      insertWeek.run(weekId, "crs_ai_agents_prod", w, `Week ${w}: Agent Milestone ${w}`, `Curriculum content for week ${w}`, now, now);
+      insertLesson.run(
+        `les_agents_w${w}_1`,
+        weekId,
+        "crs_ai_agents_prod",
+        `Lesson ${w}.1: Agent Systems Architecture Part ${w}`,
+        1,
+        1200,
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+        "[]",
+        0,
+        now,
+        now
+      );
+    }
+
+    // Seed Weeks 1 to 8 for crs_fullstack_ai_8w
+    for (let w = 1; w <= 8; w++) {
+      const weekId = `wk_fsai_w${w}`;
+      insertWeek.run(weekId, "crs_fullstack_ai_8w", w, `Week ${w}: AI System Milestone ${w}`, `Full-stack AI Engineering curriculum for week ${w}`, now, now);
+      insertLesson.run(
+        `les_fsai_w${w}_1`,
+        weekId,
+        "crs_fullstack_ai_8w",
+        `Lesson ${w}.1: Production AI Foundations & Architecture Part ${w}`,
+        1,
+        1400,
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        JSON.stringify([{ name: `AI_Architectures_Week_${w}.pdf`, file_url: "https://storage.edtech.market/files/ai_arch.pdf", file_size_bytes: 1048576, file_type: "PDF" }]),
+        w === 1 ? 1 : 0,
+        now,
+        now
+      );
+    }
+
+    // Seed Weeks 1 to 6 for crs_zerotrust_sec_6w
+    for (let w = 1; w <= 6; w++) {
+      const weekId = `wk_sec_w${w}`;
+      insertWeek.run(weekId, "crs_zerotrust_sec_6w", w, `Week ${w}: DevSecOps Milestone ${w}`, `Security architecture and zero-trust guidelines for week ${w}`, now, now);
+      insertLesson.run(
+        `les_sec_w${w}_1`,
+        weekId,
+        "crs_zerotrust_sec_6w",
+        `Lesson ${w}.1: Zero-Trust Network Controls Part ${w}`,
+        1,
+        1300,
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+        "[]",
+        w === 1 ? 1 : 0,
+        now,
+        now
+      );
+    }
+
+    // Seed Week 1 for crs_git_free_1w
+    const gitWeekId = "wk_git_w1";
+    insertWeek.run(gitWeekId, "crs_git_free_1w", 1, "Week 1: Git Mastery & Rebase Workflows", "Master git trees, commits, cherry-picking, and reflog recovery", now, now);
+    insertLesson.run(
+      "les_git_w1_1",
+      gitWeekId,
+      "crs_git_free_1w",
+      "Lesson 1.1: Git Internals & DAG Mechanics",
+      1,
+      900,
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "[]",
+      1, // Free preview
+      now,
+      now
+    );
+
+    // Seed enrollments for Sophia Chen and Alex Rivera
+    const insertEnrollment = db.prepare(`
+      INSERT OR IGNORE INTO enrollments (
+        id, user_id, course_id, status, progress_pct, assigned_by, assigned_at, due_date, completed_at, expires_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)
+    `);
+    insertEnrollment.run("enr_sophia_cloud", "usr_sophia_chen", "crs_cloud_arch_7w", "IN_PROGRESS", 45, now, now, now);
+    insertEnrollment.run("enr_alex_cloud", "usr_alex_rivera", "crs_cloud_arch_7w", "IN_PROGRESS", 20, now, now, now);
+
+    // Seed transactions (Sophia and Alex bought crs_cloud_arch_7w: $99.00 each)
+    const insertTx = db.prepare(`
+      INSERT OR REPLACE INTO transactions (
+        id, course_id, student_id, creator_id,
+        amount, amount_cents,
+        platform_fee, platform_fee_cents,
+        creator_earnings, creator_payout_cents,
+        currency, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    insertTx.run("tx_seed_cloud_1", "crs_cloud_arch_7w", "usr_sophia_chen", "usr_aris_thorne", 9900, 9900, 990, 990, 8910, 8910, "USD", "COMPLETED", now);
+    insertTx.run("tx_seed_cloud_2", "crs_cloud_arch_7w", "usr_alex_rivera", "usr_aris_thorne", 9900, 9900, 990, 990, 8910, 8910, "USD", "COMPLETED", now);
+
+    // Seed payouts
+    const insertPayout = db.prepare(`
+      INSERT OR REPLACE INTO payouts (id, creator_id, amount, amount_cents, status, requested_at, processed_at, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    insertPayout.run("po_seed_1", "usr_aris_thorne", 5000, 5000, "PROCESSED", new Date(Date.now() - 3 * 86400000).toISOString(), new Date(Date.now() - 2 * 86400000).toISOString(), "Initial creator studio withdrawal");
+    insertPayout.run("po_seed_2", "usr_aris_thorne", 2500, 2500, "PENDING", now, null, "Bi-weekly creator earnings withdrawal");
+
+  } catch (err) {
+    // ignore
+  }
+
   // Record migration marker
   db.prepare("INSERT OR REPLACE INTO _migrations (name, applied_at) VALUES ('001_initial_schema_and_seed', ?)").run(now);
 }

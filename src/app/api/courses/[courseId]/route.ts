@@ -11,7 +11,7 @@ export async function GET(
   try {
     initDb();
     const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
     const { courseId } = await params;
 
     // Support lookup by ID or slug

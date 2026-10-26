@@ -10,8 +10,19 @@ export async function GET(
   try {
     initDb();
     const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
     const { moduleId } = await params;
+
+    if (currentUser.role === "SUPER_ADMIN") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN_SUPER_ADMIN_CONTENT_GATE",
+          message: "Super Admin access to creator intellectual property and raw lesson content is strictly restricted.",
+        },
+        { status: 403 }
+      );
+    }
 
     const moduleStmt = db.prepare("SELECT * FROM modules WHERE id = ?");
     const moduleItem = moduleStmt.get(moduleId) as any;

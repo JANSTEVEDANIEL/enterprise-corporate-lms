@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
     const { quizId } = await params;
 
     let body: any = {};

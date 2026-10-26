@@ -12,18 +12,18 @@ import {
   getCurrentUserSync,
 } from "../../src/lib/auth";
 import { GET, POST } from "../../src/app/api/auth/session/route";
-import type { Role, SessionUser } from "../../src/types";
+import type { Role, CorporateRole, SessionUser } from "../../src/types";
 
 describe("Adversarial Empirical Challenge — Auth, Session & RBAC Barriers", () => {
   // ==========================================================================
   // SUITE 1: RBAC Hierarchy Matrix (16 Combinations & Boundary Cases)
   // ==========================================================================
   describe("Suite 1: RBAC Hierarchy Matrix & Downward/Upward Checks", () => {
-    const roles: Role[] = ["EMPLOYEE", "MANAGER", "COMPLIANCE_OFFICER", "SUPER_ADMIN"];
+    const roles: CorporateRole[] = ["EMPLOYEE", "MANAGER", "COMPLIANCE_OFFICER", "SUPER_ADMIN"];
 
     it("1.1 Confirms complete 4x4 permission matrix strictly matches corporate hierarchy", () => {
       // Expected hierarchy: EMPLOYEE(1) <= MANAGER(2) <= COMPLIANCE_OFFICER(3) <= SUPER_ADMIN(4)
-      const expectedMatrix: Record<Role, Record<Role, boolean>> = {
+      const expectedMatrix: Record<CorporateRole, Record<CorporateRole, boolean>> = {
         EMPLOYEE: {
           EMPLOYEE: true,
           MANAGER: false,

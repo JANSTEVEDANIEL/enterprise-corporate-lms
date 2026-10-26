@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser, getUserById, getAllPersonas } from "@/lib/auth";
+import { getCurrentUser, getUserById, getAllPersonas, getMarketplacePersonas } from "@/lib/auth";
 
 export async function GET() {
   try {
     const currentUser = await getCurrentUser();
     const personas = getAllPersonas();
+    const marketplacePersonas = getMarketplacePersonas();
 
     return NextResponse.json({
       success: true,
       data: {
         currentUser,
         personas,
+        marketplacePersonas,
       },
     });
   } catch (error: any) {
@@ -27,7 +29,17 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId } = body;
+    let { userId, role } = body;
+
+    if (!userId && role) {
+      const upperRole = String(role).toUpperCase();
+      if (upperRole === "STUDENT") userId = "usr_sophia_chen";
+      else if (upperRole === "CO_ADMIN" || upperRole === "CREATOR") userId = "usr_aris_thorne";
+      else if (upperRole === "SUPER_ADMIN") userId = "usr_david_kim";
+      else if (upperRole === "EMPLOYEE") userId = "usr_alex_rivera";
+      else if (upperRole === "MANAGER") userId = "usr_sarah_jenkins";
+      else if (upperRole === "COMPLIANCE_OFFICER") userId = "usr_marcus_vance";
+    }
 
     if (!userId) {
       return NextResponse.json(

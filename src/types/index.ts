@@ -1,4 +1,12 @@
-export type Role = "EMPLOYEE" | "MANAGER" | "COMPLIANCE_OFFICER" | "SUPER_ADMIN";
+export type CorporateRole = "EMPLOYEE" | "MANAGER" | "COMPLIANCE_OFFICER" | "SUPER_ADMIN";
+export type MarketplaceRole = "STUDENT" | "CO_ADMIN" | "SUPER_ADMIN";
+export type Role =
+  | "EMPLOYEE"
+  | "MANAGER"
+  | "COMPLIANCE_OFFICER"
+  | "SUPER_ADMIN"
+  | "STUDENT"
+  | "CO_ADMIN";
 
 export type CourseCategory =
   | "ONBOARDING"
@@ -203,3 +211,5 @@ export interface SanitizedQuiz {
   time_limit_minutes: number | null;
   questions: SanitizedQuestion[];
 }
+
+export * from "./marketplace";

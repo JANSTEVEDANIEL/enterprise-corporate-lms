@@ -3,12 +3,13 @@ import { randomUUID } from "node:crypto";
 import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit";
+import { sanitizeCourseCatalogForRole } from "@/lib/privacy";
 
 export async function GET(request: NextRequest) {
   try {
     initDb();
     const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
 
     const searchParams = request.nextUrl.searchParams;
     const category = searchParams.get("category");
@@ -45,11 +46,12 @@ export async function GET(request: NextRequest) {
 
     const stmt = db.prepare(sql);
     const courses = stmt.all(...params);
+    const sanitizedCourses = sanitizeCourseCatalogForRole(courses, currentUser.role);
 
     return NextResponse.json({
       success: true,
-      courses,
-      count: courses.length,
+      courses: sanitizedCourses,
+      count: sanitizedCourses.length,
     });
   } catch (error: any) {
     console.error("GET /api/courses error:", error);
