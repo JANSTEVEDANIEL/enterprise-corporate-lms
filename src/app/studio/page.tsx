@@ -28,6 +28,7 @@ export default function CreatorStudioPage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>({
     total_gross_dollars: 0,
+    total_platform_fee_dollars: 0,
     total_net_dollars: 0,
     total_courses: 0,
     total_enrolled_students: 0,
@@ -44,7 +45,40 @@ export default function CreatorStudioPage() {
   const [payoutNotes, setPayoutNotes] = useState("");
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
   const [isSubmittingPayout, setIsSubmittingPayout] = useState(false);
+  const [processingPayoutId, setProcessingPayoutId] = useState<string | null>(null);
   const [payoutFeedback, setPayoutFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleProcessPayout = async (payoutId: string) => {
+    try {
+      setProcessingPayoutId(payoutId);
+      const res = await fetch("/api/studio/payouts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payout_id: payoutId, status: "PROCESSED" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPayoutHistory((prev) =>
+          prev.map((p) =>
+            p.id === payoutId
+              ? {
+                  ...p,
+                  status: "PROCESSED",
+                  processed_at: data.payout?.processed_at || new Date().toISOString(),
+                }
+              : p
+          )
+        );
+        showNotification("Payout processed successfully!");
+      } else {
+        alert(data.error || "Failed to process payout");
+      }
+    } catch (err: any) {
+      alert(err.message || "Error processing payout");
+    } finally {
+      setProcessingPayoutId(null);
+    }
+  };
 
   const fetchStudioData = async () => {
     try {
@@ -230,8 +264,8 @@ export default function CreatorStudioPage() {
           </div>
         )}
 
-        {/* Creator Analytics Metrics Grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Creator Analytics Metrics Grid - 3-Way Financial Split */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {/* Card 1: Total Gross Sales */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-md">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
@@ -241,10 +275,22 @@ export default function CreatorStudioPage() {
             <p className="mt-2 text-2xl font-black text-slate-100">
               ${(analytics.total_gross_dollars || 0).toFixed(2)}
             </p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Total course volume</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">100% Course volume</p>
           </div>
 
-          {/* Card 2: 90% Net Creator Revenue */}
+          {/* Card 2: 10% Platform Fee */}
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-5 shadow-xl backdrop-blur-md">
+            <div className="flex items-center justify-between text-xs font-semibold text-rose-400">
+              <span>10% Platform Fee</span>
+              <DollarSign className="h-4 w-4 text-rose-400" />
+            </div>
+            <p className="mt-2 text-2xl font-black text-rose-300">
+              ${(analytics.total_platform_fee_dollars ?? ((analytics.total_gross_dollars || 0) * 0.1)).toFixed(2)}
+            </p>
+            <p className="text-[11px] text-rose-500/80 mt-0.5">10% Platform commission</p>
+          </div>
+
+          {/* Card 3: 90% Net Creator Revenue */}
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5 shadow-xl backdrop-blur-md">
             <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
               <span>90% Net Revenue</span>
@@ -256,7 +302,7 @@ export default function CreatorStudioPage() {
             <p className="text-[11px] text-emerald-500/80 mt-0.5">Zero penny leakage split</p>
           </div>
 
-          {/* Card 3: Total Enrolled Students */}
+          {/* Card 4: Total Enrolled Students */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-md">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Total Enrolled</span>
@@ -268,7 +314,7 @@ export default function CreatorStudioPage() {
             <p className="text-[11px] text-slate-500 mt-0.5">Unique paying students</p>
           </div>
 
-          {/* Card 4: Total Courses */}
+          {/* Card 5: Total Courses */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-md">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Total Courses</span>
@@ -283,8 +329,8 @@ export default function CreatorStudioPage() {
             </p>
           </div>
 
-          {/* Card 5: Available Wallet Balance */}
-          <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-xl backdrop-blur-md sm:col-span-2 lg:col-span-1">
+          {/* Card 6: Available Wallet Balance */}
+          <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-xl backdrop-blur-md">
             <div className="flex items-center justify-between text-xs font-semibold text-indigo-400">
               <span>Available Wallet</span>
               <Wallet className="h-4 w-4 text-indigo-400" />
@@ -634,10 +680,23 @@ export default function CreatorStudioPage() {
                             </p>
                           </div>
                           {isProcessed && (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            <div className="flex items-center gap-1.5 text-emerald-400">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span className="text-[10px] font-semibold">Processed</span>
+                            </div>
                           )}
                           {isPending && (
-                            <Clock className="h-4 w-4 text-amber-400 animate-pulse" />
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-amber-400 animate-pulse" />
+                              <button
+                                type="button"
+                                disabled={processingPayoutId === po.id}
+                                onClick={() => handleProcessPayout(po.id)}
+                                className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold transition-all disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {processingPayoutId === po.id ? "Processing..." : "Simulate Process"}
+                              </button>
+                            </div>
                           )}
                         </div>
                       );

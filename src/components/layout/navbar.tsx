@@ -13,9 +13,6 @@ import {
   X,
   LogIn,
   UserPlus,
-  BookOpen,
-  Briefcase,
-  ChevronDown,
 } from "lucide-react";
 import type { SessionUser } from "@/types";
 
@@ -26,7 +23,6 @@ interface NavbarProps {
 export function Navbar({ currentUser }: NavbarProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [corporateOpen, setCorporateOpen] = useState(false);
 
   const navLinks = [
     {
@@ -59,21 +55,13 @@ export function Navbar({ currentUser }: NavbarProps) {
     },
   ];
 
-  const corporateLinks = [
-    { href: "/courses", label: "Corporate Courses" },
-    { href: "/compliance", label: "Compliance Dashboard" },
-    { href: "/audit", label: "Audit Log Ledger" },
-    { href: "/manager", label: "Manager Team Progress" },
-    { href: "/simulation", label: "Office Persona Runner" },
-  ];
-
   return (
     <nav className="w-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 sticky top-10 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Left: Brand Identity */}
           <div className="flex items-center gap-6">
-            <Link href="/marketplace" className="flex items-center gap-2.5 group">
+            <Link href="/" className="flex items-center gap-2.5 group">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
                 <Shield className="w-4 h-4" />
               </div>
@@ -118,37 +106,6 @@ export function Navbar({ currentUser }: NavbarProps) {
                   </Link>
                 );
               })}
-
-              {/* Corporate LMS Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setCorporateOpen(!corporateOpen)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
-                >
-                  <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Enterprise Track</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </button>
-
-                {corporateOpen && (
-                  <div className="absolute left-0 mt-1 w-48 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-50">
-                    <div className="px-3 py-1 text-[10px] uppercase font-semibold text-slate-400">
-                      Corporate Compliance
-                    </div>
-                    {corporateLinks.map((c) => (
-                      <Link
-                        key={c.href}
-                        href={c.href}
-                        onClick={() => setCorporateOpen(false)}
-                        className="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        {c.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
@@ -210,22 +167,6 @@ export function Navbar({ currentUser }: NavbarProps) {
               </Link>
             );
           })}
-
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-            <div className="text-[10px] uppercase font-semibold text-slate-400 px-3 py-1">
-              Enterprise Track
-            </div>
-            {corporateLinks.map((c) => (
-              <Link
-                key={c.href}
-                href={c.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-              >
-                {c.label}
-              </Link>
-            ))}
-          </div>
         </div>
       )}
     </nav>

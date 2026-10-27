@@ -1,85 +1,159 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  ShieldAlert,
-  ShieldCheck,
   Lock,
   DollarSign,
   TrendingUp,
-  BookOpen,
   Users,
   EyeOff,
-  Layers,
-  ArrowRight,
   Receipt,
   CreditCard,
+  CheckCircle2,
+  Clock,
+  Send,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
-import { getDb, initDb } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
 import { maskCourseTitle } from "@/lib/privacy";
 
-export default async function AdminDashboardPage() {
-  initDb();
-  const db = getDb();
+interface AdminStats {
+  gmv_cents: number;
+  gmv_dollars: number;
+  platform_fee_cents: number;
+  platform_fee_dollars: number;
+  completed_transactions: number;
+  payouts_processed_cents: number;
+  payouts_processed_dollars: number;
+  payouts_processed_count: number;
+  total_users: number;
+}
 
-  let currentUser = null;
-  try {
-    currentUser = await getCurrentUser();
-  } catch {
-    // demo fallback
-  }
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<AdminStats>({
+    gmv_cents: 0,
+    gmv_dollars: 0,
+    platform_fee_cents: 0,
+    platform_fee_dollars: 0,
+    completed_transactions: 0,
+    payouts_processed_cents: 0,
+    payouts_processed_dollars: 0,
+    payouts_processed_count: 0,
+    total_users: 0,
+  });
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [payoutTab, setPayoutTab] = useState<"pending" | "all">("pending");
+  const [processingPayoutId, setProcessingPayoutId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<string | null>(null);
 
-  // 1. Query real financial ledger metrics from transactions
-  const txStats = db
-    .prepare(`
-      SELECT 
-        COALESCE(SUM(amount_cents), 0) as total_amount_cents,
-        COALESCE(SUM(platform_fee_cents), 0) as total_platform_cents,
-        COALESCE(SUM(creator_payout_cents), 0) as total_creator_cents,
-        COUNT(*) as total_tx_count
-      FROM transactions 
-      WHERE status = 'COMPLETED'
-    `)
-    .get() as any;
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
+  };
 
-  // 2. Query processed creator payouts
-  const payoutStats = db
-    .prepare(`
-      SELECT 
-        COALESCE(SUM(amount_cents), 0) as total_processed_cents,
-        COUNT(*) as total_processed_count
-      FROM payouts 
-      WHERE status = 'PROCESSED'
-    `)
-    .get() as any;
+  const fetchAdminData = async () => {
+    try {
+      setLoading(true);
 
-  // 3. Platform user count
-  const userCount =
-    (db.prepare("SELECT COUNT(*) as count FROM users").get() as any)?.count ?? 5;
+      // 1. Fetch platform economics stats
+      const statsRes = await fetch("/api/admin/stats");
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        if (statsData.success && statsData.stats) {
+          setStats(statsData.stats);
+        }
+      }
 
-  const totalGmvDollars = (txStats?.total_amount_cents ?? 0) / 100;
-  const platformFeeCommissionDollars = (txStats?.total_platform_cents ?? 0) / 100;
-  const totalCompletedTransactions = txStats?.total_tx_count ?? 0;
-  const totalCreatorPayoutsProcessedDollars =
-    (payoutStats?.total_processed_cents ?? 0) / 100;
-  const totalCreatorPayoutsProcessedCount =
-    payoutStats?.total_processed_count ?? 0;
+      // 2. Fetch all creator payouts
+      const payoutsRes = await fetch("/api/studio/payouts");
+      if (payoutsRes.ok) {
+        const payoutsData = await payoutsRes.json();
+        if (payoutsData.success && Array.isArray(payoutsData.payouts)) {
+          setPayouts(payoutsData.payouts);
+        }
+      }
 
-  // 4. Query published courses for privacy-shielded catalog
-  const rawCourses = db
-    .prepare(`
-      SELECT c.id, c.title, c.category, c.price_cents, c.thumbnail_url, c.created_at,
-             COALESCE(u.name, 'Dr. Aris Thorne') as creator_name,
-             (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) as sales_count
-      FROM courses c
-      LEFT JOIN users u ON c.creator_id = u.id
-      WHERE c.is_published = 1
-      ORDER BY c.created_at DESC
-    `)
-    .all() as any[];
+      // 3. Fetch courses for privacy-shielded catalog
+      const coursesRes = await fetch("/api/courses");
+      if (coursesRes.ok) {
+        const coursesData = await coursesRes.json();
+        if (coursesData.success && Array.isArray(coursesData.courses)) {
+          setCourses(coursesData.courses);
+        }
+      }
+    } catch {
+      // fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdminData();
+  }, []);
+
+  const handleApprovePayout = async (payoutId: string) => {
+    try {
+      setProcessingPayoutId(payoutId);
+      const res = await fetch("/api/studio/payouts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payout_id: payoutId, status: "PROCESSED" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPayouts((prev) =>
+          prev.map((p) =>
+            p.id === payoutId
+              ? {
+                  ...p,
+                  status: "PROCESSED",
+                  processed_at: data.payout?.processed_at || new Date().toISOString(),
+                }
+              : p
+          )
+        );
+
+        // Optimistically update stats
+        const approvedPayout = payouts.find((p) => p.id === payoutId);
+        if (approvedPayout) {
+          const amtDollars =
+            approvedPayout.amount_dollars ??
+            (approvedPayout.amount_cents ? approvedPayout.amount_cents / 100 : 0);
+          setStats((prev) => ({
+            ...prev,
+            payouts_processed_dollars: prev.payouts_processed_dollars + amtDollars,
+            payouts_processed_count: prev.payouts_processed_count + 1,
+          }));
+        }
+
+        showNotification("Creator payout successfully approved and marked PROCESSED!");
+      } else {
+        alert(data.error || "Failed to process payout");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to process payout");
+    } finally {
+      setProcessingPayoutId(null);
+    }
+  };
+
+  const pendingPayouts = payouts.filter((p) => p.status === "PENDING");
+  const displayedPayouts = payoutTab === "pending" ? pendingPayouts : payouts;
 
   return (
     <div className="space-y-8 pb-12">
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-950/90 px-5 py-3 text-sm text-emerald-300 shadow-2xl backdrop-blur-xl animate-fade-in">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+          <span>{notification}</span>
+        </div>
+      )}
+
       {/* Super Admin Operator Header */}
       <section className="backdrop-blur-xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-rose-950/80 border border-slate-700/60 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -127,19 +201,19 @@ export default async function AdminDashboardPage() {
             <TrendingUp className="w-4 h-4 text-brand-500" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-            ${totalGmvDollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${stats.gmv_dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-500">Gross transaction value processed</div>
+          <div className="text-[11px] text-slate-500">Gross transaction volume processed</div>
         </div>
 
-        {/* 2. Accumulated 10% Platform Commission */}
+        {/* 2. Retained 10% Platform Commission */}
         <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Platform Fee Earnings (10%)</span>
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-            +${platformFeeCommissionDollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            +${stats.platform_fee_dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-slate-500">Retained 10% platform commission cut</div>
         </div>
@@ -151,7 +225,7 @@ export default async function AdminDashboardPage() {
             <Receipt className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-            {totalCompletedTransactions}
+            {stats.completed_transactions}
           </div>
           <div className="text-[11px] text-slate-500">Successful student purchases</div>
         </div>
@@ -163,11 +237,173 @@ export default async function AdminDashboardPage() {
             <CreditCard className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-            ${totalCreatorPayoutsProcessedDollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${stats.payouts_processed_dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-500">{totalCreatorPayoutsProcessedCount} disbursements processed</div>
+          <div className="text-[11px] text-slate-500">{stats.payouts_processed_count} disbursements processed</div>
         </div>
       </div>
+
+      {/* Feature 16: Pending Creator Payouts Console */}
+      <section className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <CreditCard className="w-5 h-5 text-amber-500" />
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Pending Creator Payouts Console
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                {pendingPayouts.length} Pending
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Super Admin disbursement management center: review creator withdrawal requests and approve/process instant electronic transfers.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setPayoutTab("pending")}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  payoutTab === "pending"
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                Pending ({pendingPayouts.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayoutTab("all")}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  payoutTab === "all"
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                All Records ({payouts.length})
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={fetchAdminData}
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+              title="Refresh console"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Payouts Table */}
+        {displayedPayouts.length === 0 ? (
+          <div className="py-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-60" />
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              {payoutTab === "pending"
+                ? "All creator payouts have been processed"
+                : "No payout requests recorded"}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Zero pending disbursements awaiting platform approval.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">
+                  <th className="pb-3">Payout ID</th>
+                  <th className="pb-3">Creator / Instructor</th>
+                  <th className="pb-3">Requested Date</th>
+                  <th className="pb-3">Notes / Channel</th>
+                  <th className="pb-3">Status</th>
+                  <th className="pb-3 text-right">Amount</th>
+                  <th className="pb-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {displayedPayouts.map((po) => {
+                  const isPending = po.status === "PENDING";
+                  const isProcessed = po.status === "PROCESSED";
+                  const amountDollars =
+                    po.amount_dollars ??
+                    (po.amount_cents ? po.amount_cents / 100 : (po.amount ? po.amount / 100 : 0));
+
+                  return (
+                    <tr
+                      key={po.id}
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                    >
+                      <td className="py-3.5 font-mono text-slate-500 dark:text-slate-400">
+                        {po.id}
+                      </td>
+                      <td className="py-3.5">
+                        <div className="font-semibold text-slate-900 dark:text-white">
+                          {po.creator_name || po.creator_id || "Dr. Aris Thorne"}
+                        </div>
+                        {po.creator_email && (
+                          <div className="text-[10px] text-slate-400">{po.creator_email}</div>
+                        )}
+                      </td>
+                      <td className="py-3.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {po.requested_at
+                          ? new Date(po.requested_at).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "Recent"}
+                      </td>
+                      <td className="py-3.5 text-slate-500 dark:text-slate-400 max-w-xs truncate">
+                        {po.notes || "Creator Studio Withdrawal Request"}
+                      </td>
+                      <td className="py-3.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border inline-flex items-center gap-1 ${
+                            isProcessed
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                              : isPending
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                              : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                          }`}
+                        >
+                          {isProcessed && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                          {isPending && <Clock className="w-3 h-3 text-amber-500 animate-pulse" />}
+                          <span>{po.status}</span>
+                        </span>
+                      </td>
+                      <td className="py-3.5 text-right font-extrabold text-slate-900 dark:text-white whitespace-nowrap">
+                        ${amountDollars.toFixed(2)} USD
+                      </td>
+                      <td className="py-3.5 text-right">
+                        {isPending ? (
+                          <button
+                            type="button"
+                            disabled={processingPayoutId === po.id}
+                            onClick={() => handleApprovePayout(po.id)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>{processingPayoutId === po.id ? "Processing..." : "Approve & Disburse"}</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-medium text-slate-400">
+                            Processed
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* Creator Content Privacy Shield: Privacy-Shielded Marketplace Catalog */}
       <div className="space-y-4">
@@ -205,9 +441,10 @@ export default async function AdminDashboardPage() {
 
         {/* Privacy Shielded Courses List */}
         <div className="space-y-3">
-          {rawCourses.map((c) => {
+          {courses.map((c) => {
             const maskedTitle = maskCourseTitle(c.title);
-            const priceDollars = Number((c.price_cents / 100).toFixed(2));
+            const priceCents = c.price_cents ?? (c.price ? Math.round(c.price * 100) : 0);
+            const priceDollars = Number((priceCents / 100).toFixed(2));
             const publishedDate = c.created_at
               ? new Date(c.created_at).toLocaleDateString("en-US", {
                   year: "numeric",
@@ -223,7 +460,6 @@ export default async function AdminDashboardPage() {
               >
                 {/* Left: Blurred Cover Thumbnail with Lock Badge + Masked Title */}
                 <div className="flex items-center gap-4 min-w-0">
-                  {/* Blurred cover preview with central lock badge */}
                   <div className="relative w-20 h-16 rounded-xl bg-slate-950 border border-slate-700/80 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                     {c.thumbnail_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -257,13 +493,17 @@ export default async function AdminDashboardPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      <span>Creator: <strong className="text-slate-700 dark:text-slate-300">{c.creator_name}</strong></span>
+                      <span>
+                        Creator: <strong className="text-slate-700 dark:text-slate-300">{c.creator_name || "Dr. Aris Thorne"}</strong>
+                      </span>
                       <span>•</span>
                       <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300">
                         {c.category}
                       </span>
                       <span>•</span>
-                      <span>Tuition: <strong className="text-slate-700 dark:text-slate-300">${priceDollars.toFixed(2)}</strong></span>
+                      <span>
+                        Tuition: <strong className="text-slate-700 dark:text-slate-300">${priceDollars.toFixed(2)}</strong>
+                      </span>
                       <span>•</span>
                       <span>Published: {publishedDate}</span>
                     </div>
@@ -275,7 +515,7 @@ export default async function AdminDashboardPage() {
                   <div className="text-left md:text-right">
                     <div className="text-[10px] text-slate-400 uppercase font-medium">Sales Count</div>
                     <div className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      {c.sales_count} units
+                      {c.sales_count ?? 0} units
                     </div>
                   </div>
 

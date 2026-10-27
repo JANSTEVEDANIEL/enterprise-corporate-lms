@@ -90,13 +90,19 @@ export function CertificateModal({ isOpen, onClose, certificate }: CertificateMo
           {/* Recipient and Title */}
           <div className="space-y-1">
             <p className="text-xs text-slate-400">This certifies that</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h2
+              className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white"
+              data-testid="certificate-user-name"
+            >
               {certificate.user_name}
             </h2>
             <p className="text-xs text-slate-400 pt-1">
               has successfully completed all milestones and weekly modules of
             </p>
-            <h3 className="text-base sm:text-lg font-bold text-amber-300 max-w-lg mx-auto pt-1">
+            <h3
+              className="text-base sm:text-lg font-bold text-amber-300 max-w-lg mx-auto pt-1"
+              data-testid="certificate-course-title"
+            >
               {certificate.course_title}
             </h3>
           </div>
@@ -105,19 +111,24 @@ export function CertificateModal({ isOpen, onClose, certificate }: CertificateMo
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-800 text-left text-xs">
             <div className="space-y-0.5">
               <span className="text-[10px] uppercase font-semibold text-slate-400">Unique Cert ID</span>
-              <div className="font-mono font-bold text-amber-300 text-xs sm:text-sm">
+              <div
+                className="font-mono font-bold text-amber-300 text-xs sm:text-sm"
+                data-testid="certificate-code"
+              >
                 {certificate.certificate_code}
               </div>
             </div>
 
             <div className="space-y-0.5">
               <span className="text-[10px] uppercase font-semibold text-slate-400">Issue Date</span>
-              <div className="font-medium text-slate-200">{formattedDate}</div>
+              <div className="font-medium text-slate-200" data-testid="certificate-issued-at">
+                {formattedDate}
+              </div>
             </div>
 
             <div className="col-span-2 sm:col-span-1 space-y-0.5">
               <span className="text-[10px] uppercase font-semibold text-slate-400">Status</span>
-              <div className="flex items-center gap-1 text-emerald-400 font-semibold">
+              <div className="flex items-center gap-1 text-emerald-400 font-semibold" data-testid="certificate-status">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Verified</span>
               </div>
@@ -130,7 +141,10 @@ export function CertificateModal({ isOpen, onClose, certificate }: CertificateMo
               <span className="font-mono">SHA-256 Cryptographic Verification Hash:</span>
               <span className="text-emerald-400 font-bold">Ledger Signed</span>
             </div>
-            <div className="font-mono text-[10px] text-slate-300 truncate selection:bg-amber-500/30">
+            <div
+              className="font-mono text-[10px] text-slate-300 truncate selection:bg-amber-500/30"
+              data-testid="certificate-hash"
+            >
               {certificate.verification_hash}
             </div>
           </div>
@@ -161,6 +175,7 @@ export function CertificateModal({ isOpen, onClose, certificate }: CertificateMo
               href={`/certificates/${certificate.certificate_code}`}
               target="_blank"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 transition-all"
+              data-testid="certificate-verify-link"
             >
               <ExternalLink className="w-4 h-4" />
               <span>Verify on Registry</span>

@@ -20,8 +20,10 @@ export interface UnifiedDbAdapter {
   getLesson(lessonId: string): Promise<any | null>;
   getWallet(userId: string): Promise<any | null>;
   recordTransaction(tx: any): Promise<any>;
+  getTransactionsForUser(userId: string): Promise<any[]>;
   getPayouts(creatorId?: string): Promise<any[]>;
   createPayoutRequest(creatorId: string, amountCents: number, notes?: string): Promise<any>;
+  processPayout(payoutId: string, status?: string): Promise<any>;
   getEnrolledCourses(userId: string): Promise<any[]>;
   getCourseWithFullCurriculum(courseId: string, userId?: string): Promise<any | null>;
   updateLessonProgress(
@@ -347,6 +349,53 @@ export class DbAdapter implements UnifiedDbAdapter {
     return data;
   }
 
+  async getTransactionsForUser(userId: string): Promise<any[]> {
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      const rows = db.prepare(`
+        SELECT 
+          t.id,
+          t.course_id,
+          COALESCE(c.title, 'Course Purchase') as course_title,
+          COALESCE(t.amount_cents, t.amount, 0) as amount_cents,
+          t.currency,
+          t.status,
+          t.created_at,
+          'PURCHASE' as type
+        FROM transactions t
+        LEFT JOIN courses c ON t.course_id = c.id
+        WHERE t.student_id = ?
+        ORDER BY t.created_at DESC
+      `).all(userId) as any[];
+
+      return rows.map((r) => ({
+        ...r,
+        amount_dollars: Number((r.amount_cents / 100).toFixed(2)),
+      }));
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return [];
+    const { data } = await supabase
+      .from("transactions")
+      .select("*, courses(title)")
+      .eq("student_id", userId)
+      .order("created_at", { ascending: false });
+
+    return (data || []).map((t: any) => ({
+      id: t.id,
+      course_id: t.course_id,
+      course_title: t.courses?.title || "Course Purchase",
+      amount_cents: t.amount_cents ?? t.amount ?? 0,
+      amount_dollars: Number(((t.amount_cents ?? t.amount ?? 0) / 100).toFixed(2)),
+      currency: t.currency || "USD",
+      status: t.status || "COMPLETED",
+      type: "PURCHASE",
+      created_at: t.created_at,
+    }));
+  }
+
   async getPayouts(creatorId?: string): Promise<any[]> {
     if (this.isOffline) {
       initDb();
@@ -416,6 +465,54 @@ export class DbAdapter implements UnifiedDbAdapter {
       status: "PENDING",
       notes: notes || null,
     }).select().single();
+    return data;
+  }
+
+  async processPayout(payoutId: string, status: string = "PROCESSED"): Promise<any> {
+    const now = new Date().toISOString();
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      db.prepare("UPDATE payouts SET status = ?, processed_at = ? WHERE id = ?").run(
+        status,
+        now,
+        payoutId
+      );
+      try {
+        db.prepare(
+          "UPDATE payout_requests SET status = ?, processed_at = ? WHERE id = ?"
+        ).run(status, now, payoutId);
+      } catch {}
+
+      const payout = db
+        .prepare(`
+          SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name
+          FROM payouts p
+          LEFT JOIN users u ON p.creator_id = u.id
+          WHERE p.id = ?
+        `)
+        .get(payoutId) as any;
+
+      if (payout) {
+        return {
+          ...payout,
+          amount_cents: payout.amount_cents ?? payout.amount ?? 0,
+          amount_dollars: Number(((payout.amount_cents ?? payout.amount ?? 0) / 100).toFixed(2)),
+          status,
+          processed_at: now,
+        };
+      }
+      return null;
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return null;
+    const { data } = await supabase
+      .from("payouts")
+      .update({ status, processed_at: now })
+      .eq("id", payoutId)
+      .select()
+      .single();
     return data;
   }
 

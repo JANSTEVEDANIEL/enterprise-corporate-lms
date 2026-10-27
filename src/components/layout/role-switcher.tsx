@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   GraduationCap,
@@ -8,10 +8,7 @@ import {
   ShieldCheck,
   Wallet,
   Check,
-  ChevronDown,
   Layers,
-  Briefcase,
-  UserCheck,
 } from "lucide-react";
 import type { Role, SessionUser } from "@/types";
 import { ThemeToggle } from "./theme-toggle";
@@ -57,32 +54,12 @@ const MARKETPLACE_ROLES = [
   },
 ];
 
-const CORPORATE_ROLES = [
-  { id: "usr_alex_rivera", name: "Alex Rivera", role: "EMPLOYEE", title: "Junior Engineer" },
-  { id: "usr_elena_rostova", name: "Elena Rostova", role: "EMPLOYEE", title: "Security Engineer" },
-  { id: "usr_sarah_jenkins", name: "Sarah Jenkins", role: "MANAGER", title: "Engineering Manager" },
-  { id: "usr_marcus_vance", name: "Marcus Vance", role: "COMPLIANCE_OFFICER", title: "Compliance Officer" },
-];
-
 export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<SessionUser | undefined>(initialUser);
   const [balance, setBalance] = useState<number>(walletBalance);
   const [isSwitching, setIsSwitching] = useState(false);
-  const [corporateOpen, setCorporateOpen] = useState(false);
-  const corporateRef = useRef<HTMLDivElement>(null);
-
-  // Close corporate dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (corporateRef.current && !corporateRef.current.contains(e.target as Node)) {
-        setCorporateOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Poll or sync session on initial load if not set
   useEffect(() => {
@@ -123,7 +100,6 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
       console.error("Failed to switch persona", err);
     } finally {
       setIsSwitching(false);
-      setCorporateOpen(false);
     }
 
     // Smooth page transition without broken reload
@@ -134,8 +110,8 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
     }
   };
 
-  const activeRoleId = currentUser?.id || "usr_alex_rivera";
-  const activeRole = currentUser?.role || "EMPLOYEE";
+  const activeRoleId = currentUser?.id || "usr_sophia_chen";
+  const activeRole = currentUser?.role || "STUDENT";
   const isStudent = activeRole === "STUDENT" || activeRoleId === "usr_sophia_chen";
 
   return (
@@ -198,7 +174,9 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
           {/* Marketplace Role Switch Buttons */}
           <div className="inline-flex items-center p-0.5 bg-slate-800/80 rounded-lg border border-slate-700/60">
             {MARKETPLACE_ROLES.map((r) => {
-              const isActive = activeRoleId === r.id || (currentUser?.role === r.role && !currentUser?.id.startsWith("usr_alex"));
+              const isActive =
+                activeRoleId === r.id ||
+                (currentUser?.role === r.role && !currentUser?.id?.startsWith("usr_alex"));
               const Icon = r.icon;
 
               return (
@@ -220,49 +198,6 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
                 </button>
               );
             })}
-          </div>
-
-          {/* Corporate Roles Dropdown */}
-          <div className="relative inline-block" ref={corporateRef}>
-            <button
-              type="button"
-              onClick={() => setCorporateOpen(!corporateOpen)}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 rounded-md transition-colors"
-              title="Corporate employee & compliance personas"
-            >
-              <Briefcase className="w-3 h-3 text-slate-400" />
-              <span className="hidden sm:inline">Corporate</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {corporateOpen && (
-              <div className="absolute right-0 mt-1 w-56 backdrop-blur-xl bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1.5 border-b border-slate-800 text-[10px] uppercase font-semibold text-slate-400">
-                  Corporate Personas
-                </div>
-                {CORPORATE_ROLES.map((c) => {
-                  const isCur = activeRoleId === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleRoleSwitch(c.id, "/courses")}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-800/80 transition-colors ${
-                        isCur ? "bg-slate-800 text-brand-300 font-semibold" : "text-slate-200"
-                      }`}
-                    >
-                      <div>
-                        <div className="text-white font-medium">{c.name}</div>
-                        <div className="text-[10px] text-slate-400">{c.title}</div>
-                      </div>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
-                        {c.role}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Theme Toggle */}

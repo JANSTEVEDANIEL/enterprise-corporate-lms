@@ -419,26 +419,30 @@ describe("Milestone 5: Student Learning Player, Speed Controls, Progress Trackin
         ) VALUES ('enr_sophia_git', ?, ?, 'IN_PROGRESS', 0, ?, ?)
       `).run(testStudentId, singleWeekCourseId, now, now);
 
-      // 2. Mark lesson as completed (100% of single-week course)
-      const progressReq = new NextRequest(
-        `http://localhost:3000/api/courses/${singleWeekCourseId}/progress`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-lms-user-id": testStudentId,
-          },
-          body: JSON.stringify({
-            lesson_id: singleWeekLessonId,
-            status: "COMPLETED",
-            playback_percentage: 100,
-          }),
-        }
-      );
-      const progressRes = await updateCourseProgress(progressReq, {
-        params: Promise.resolve({ courseId: singleWeekCourseId }),
-      });
-      const progressData = await progressRes.json();
+      // 2. Mark all lessons in course as completed (100% of single-week course)
+      const gitLessons = db.prepare("SELECT id FROM lessons WHERE course_id = ? ORDER BY order_index ASC").all(singleWeekCourseId) as { id: string }[];
+      let progressData: any = null;
+      for (const les of gitLessons) {
+        const progressReq = new NextRequest(
+          `http://localhost:3000/api/courses/${singleWeekCourseId}/progress`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-lms-user-id": testStudentId,
+            },
+            body: JSON.stringify({
+              lesson_id: les.id,
+              status: "COMPLETED",
+              playback_percentage: 100,
+            }),
+          }
+        );
+        const progressRes = await updateCourseProgress(progressReq, {
+          params: Promise.resolve({ courseId: singleWeekCourseId }),
+        });
+        progressData = await progressRes.json();
+      }
       assert.strictEqual(progressData.success, true);
       assert.strictEqual(progressData.progress_pct, 100);
       assert.strictEqual(progressData.is_completed, true);

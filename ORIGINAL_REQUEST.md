@@ -137,3 +137,88 @@ Proceed with implementation across Track A (Schema, Storage buckets, Creator Pri
 
 Server restarted. Milestone 1 is verified: 389/389 tests passing, production build passing with 25/25 routes, live Supabase schema provisioned.
 Resume orchestration and proceed to Milestone 2 (Role Switcher & Decoupled Navigation) and Milestone 3 (Co-Admin Creator Studio & 1-7+ Week Curriculum Builder).
+
+
+## Follow-up — 2026-10-27T03:44:49Z
+
+Transform the platform into a world-class, production-ready multi-sided EdTech Course Marketplace (Udemy/Coursera/Amazon style) strictly focused on three user roles: Student Learners, Co-Admin Course Creators, and the Super Admin Platform Provider, eliminating all legacy corporate compliance leftovers and fake AI mockup elements.
+
+Working directory: /Users/janstevedaniel/Downloads/LMS FOR GAURAV
+Integrity mode: development
+
+## User-Confirmed Design Decisions
+1. **Root Page (`/`)**: High-converting Course Marketplace homepage with hero banner, category explorer, featured courses, search bar, and 1-click role switcher, completely replacing the old corporate compliance dashboard.
+2. **Layout & Sidebar**: Clean full-width layout for public marketplace pages (`/`, `/marketplace`, `/marketplace/[slug]`) like Udemy and Coursera, with dedicated contextual navigation inside the Student Hub (`/dashboard`), Creator Studio (`/studio`), and Platform Admin (`/admin`).
+3. **Legacy Clean-Up**: Complete removal of all legacy corporate compliance links, badges, and terminology (SOC 2, OSHA, Audit Log Ledger, Team Compliance) from visible navigation and UI menus.
+
+---
+
+## Requirements
+
+### R1. Marketplace Homepage & Full-Width Consumer Layout
+- The root route (`src/app/page.tsx`) must render the official Course Marketplace homepage featuring:
+  - Hero banner highlighting top courses and active student enrollment.
+  - Category filter pills (AI & Data Science, Cloud & Distributed Systems, Software Engineering, UI/UX Design, Leadership).
+  - Search bar with instant client-side filtering.
+  - High-converting course cards with real pricing, instructor bio badges, rating stars, and 1-click checkout modal.
+- The global layout (`src/app/layout.tsx`) must provide a full-width experience for marketplace and preview routes, removing the intrusive left sidebar from public views.
+
+### R2. Three Pure Role Portals (Zero Corporate Distractions)
+- **Student Portal (`/dashboard`)**:
+  - Displays enrolled courses with live weekly progress bars.
+  - Real-time $500 simulated wallet balance card with transaction history.
+  - Certificates tab with modal displaying cryptographically verifiable Certificate of Completion.
+- **Co-Admin Creator Studio (`/studio`)**:
+  - Course management table with status pills (Published, Draft).
+  - Real-time earnings analytics: Gross Sales, 10% Platform Fee, and 90% Net Creator Revenue.
+  - Payout request flow with balance reservation and status tracking (`PENDING` -> `PROCESSED`).
+  - Dynamic 1–7+ week curriculum builder (`/studio/courses/new`, `/studio/courses/[id]/edit`) with video dropzones, lab attachments, and weekly quiz builder.
+- **Super Admin Platform Provider (`/admin`)**:
+  - Platform overview: Gross Merchandise Value (GMV), 10% fee commission ledger, and active users.
+  - **Creator Content Privacy Shield**: Strictly blocks Super Admin from raw lesson videos and downloadable lab files (HTTP 403 `FORBIDDEN_SUPER_ADMIN_CONTENT_GATE`).
+  - Catalog view renders masked titles (`Advanc... [Content Encrypted]`) and blurred thumbnails with lock badges.
+
+### R3. Interactive Video Player & Learning Experience
+- Located at `/dashboard/courses/[id]`.
+- Multi-week accordion curriculum drawer organizing lessons by week with completed status checks.
+- Custom video player controls with exact playback rates: `0.75x, 1x, 1.25x, 1.5x, 2x`, progress bar, and 90%+ auto-completion.
+- Tabbed resource panel below the player:
+  - **Lesson Materials**: Downloadable PDFs, slide decks, and project ZIP files.
+  - **Weekly Knowledge Check**: Interactive quiz with immediate grading and question rationales.
+  - **Lesson Overview**: Detailed text breakdown of key concepts and learning outcomes.
+
+### R4. Realistic Course Catalog & Data Polish
+- Enrich course catalog seed data with realistic, high-quality course curricula (1 to 7+ weeks per course), genuine lesson titles, realistic video durations, real downloadable resource metadata, and authentic quiz questions.
+- Replace generic filler text and broken mockups with polished, human-crafted content across all courses.
+
+### R5. Complete Clean-up of Corporate Leftovers
+- Clean `src/components/layout/navbar.tsx` and `src/components/layout/sidebar.tsx` of all corporate compliance links.
+- Align all personas strictly to the 3 marketplace roles: Sophia Chen (Student), Dr. Aris Thorne (Co-Admin), David Kim (Super Admin).
+- Maintain 100% test compatibility for existing unit and e2e test suites.
+
+---
+
+## Acceptance Criteria
+
+### Navigation & Layout
+- [ ] Visiting `http://localhost:3000/` loads the Course Marketplace with zero corporate compliance text.
+- [ ] Marketplace catalog (`/marketplace`) and course preview (`/marketplace/[slug]`) render in a clean, full-width layout without a left sidebar.
+- [ ] 1-Click Role Switcher allows seamless switching between Student, Co-Admin, and Super Admin.
+
+### Student Experience
+- [ ] Student can purchase courses using their simulated $500 wallet balance.
+- [ ] Enrolled student can access the course player, select playback speeds (`0.75x, 1x, 1.25x, 1.5x, 2x`), and download lab attachments.
+- [ ] Completing 100% of lessons generates a verifiable Certificate of Completion.
+
+### Co-Admin Creator Studio
+- [ ] Co-Admin can construct 1–7+ week curricula with video lessons, downloadable files, and quizzes.
+- [ ] Studio dashboard accurately calculates Gross Revenue, 10% Platform Fee, and 90% Net Creator Earnings.
+- [ ] Co-Admin can submit a payout request against available balance.
+
+### Creator Privacy Shield
+- [ ] Super Admin catalog view displays masked course titles and blurred cover images.
+- [ ] Super Admin requests for raw video streams or downloadable files are rejected with HTTP 403 Forbidden.
+
+### Verification & Build
+- [ ] Production build (`npm run build`) compiles cleanly with zero TypeScript errors.
+- [ ] Full automated test suite passes (`npm test`) with zero failures.

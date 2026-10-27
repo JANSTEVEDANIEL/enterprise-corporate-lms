@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, initDb } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 import { randomUUID } from "node:crypto";
 
 export async function GET(
@@ -9,6 +10,13 @@ export async function GET(
   try {
     initDb();
     const db = getDb();
+    const currentUser = await getCurrentUser(request);
+    if (currentUser.role === "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "FORBIDDEN_SUPER_ADMIN_CONTENT_GATE", code: 403 },
+        { status: 403 }
+      );
+    }
     const { id: courseId } = await params;
 
     const course = db.prepare("SELECT * FROM courses WHERE id = ?").get(courseId) as any;
@@ -80,6 +88,13 @@ export async function POST(
   try {
     initDb();
     const db = getDb();
+    const currentUser = await getCurrentUser(request);
+    if (currentUser.role === "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "FORBIDDEN_SUPER_ADMIN_CONTENT_GATE", code: 403 },
+        { status: 403 }
+      );
+    }
     const { id: courseId } = await params;
 
     const course = db.prepare("SELECT * FROM courses WHERE id = ?").get(courseId) as any;
@@ -264,6 +279,13 @@ export async function PATCH(
   try {
     initDb();
     const db = getDb();
+    const currentUser = await getCurrentUser(request);
+    if (currentUser.role === "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "FORBIDDEN_SUPER_ADMIN_CONTENT_GATE", code: 403 },
+        { status: 403 }
+      );
+    }
     const { id: courseId } = await params;
 
     const body = await request.json().catch(() => ({}));
@@ -409,6 +431,13 @@ export async function DELETE(
   try {
     initDb();
     const db = getDb();
+    const currentUser = await getCurrentUser(request);
+    if (currentUser.role === "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "FORBIDDEN_SUPER_ADMIN_CONTENT_GATE", code: 403 },
+        { status: 403 }
+      );
+    }
     const { id: courseId } = await params;
 
     const url = new URL(request.url);

@@ -16,11 +16,11 @@ export interface CatalogFilterProps {
 
 const DEFAULT_CATEGORIES = [
   "All Categories",
-  "Software Engineering",
   "AI & Data Science",
-  "Cloud Security",
-  "Business & Leadership",
-  "Design",
+  "Cloud & Distributed Systems",
+  "Software Engineering",
+  "UI/UX Design",
+  "Leadership",
 ];
 
 export function CatalogFilter({

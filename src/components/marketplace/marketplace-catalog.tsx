@@ -12,31 +12,33 @@ export interface MarketplaceCatalogProps {
   currentUser?: SessionUser | null;
 }
 
+const CORPORATE_CATEGORIES = new Set(["ONBOARDING", "COMPLIANCE", "TECHNICAL_UPSKILLING"]);
+
+const EXACT_MARKETPLACE_CATEGORIES = [
+  "All Categories",
+  "AI & Data Science",
+  "Cloud & Distributed Systems",
+  "Software Engineering",
+  "UI/UX Design",
+  "Leadership",
+];
+
 export function MarketplaceCatalog({ initialCourses, currentUser }: MarketplaceCatalogProps) {
-  const [courses, setCourses] = useState<any[]>(initialCourses);
+  const sanitizedCourses = useMemo(() => {
+    return (initialCourses || []).filter((c) => {
+      const cat = (c.category || "").toUpperCase();
+      return !CORPORATE_CATEGORIES.has(cat);
+    });
+  }, [initialCourses]);
+
+  const [courses, setCourses] = useState<any[]>(sanitizedCourses);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [priceFilter, setPriceFilter] = useState<"ALL" | "FREE" | "PAID">("ALL");
   const [selectedCourseForCheckout, setSelectedCourseForCheckout] = useState<any | null>(null);
 
-  // Extract unique category names
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of courses) {
-      if (c.category) {
-        set.add(c.category);
-      }
-    }
-    const catList = Array.from(set).map((cat) => {
-      if (cat === "SOFTWARE") return "Software Engineering";
-      if (cat === "DATA_SCIENCE") return "AI & Data Science";
-      if (cat === "SECURITY") return "Cloud Security";
-      if (cat === "BUSINESS") return "Business & Leadership";
-      if (cat === "DESIGN") return "Design";
-      return cat.replace(/_/g, " ");
-    });
-    return ["All Categories", ...catList];
-  }, [courses]);
+  // Exact 5 marketplace category pills
+  const categories = EXACT_MARKETPLACE_CATEGORIES;
 
   // Filter courses based on search, category, and price
   const filteredCourses = useMemo(() => {
@@ -54,15 +56,78 @@ export function MarketplaceCatalog({ initialCourses, currentUser }: MarketplaceC
         }
       }
 
-      // 2. Category
+      // 2. Exact 5-Category matching
       if (selectedCategory !== "All Categories") {
-        const catUpper = c.category?.toUpperCase() || "";
-        const selUpper = selectedCategory.toUpperCase();
-        if (selUpper.includes("SOFTWARE") && !catUpper.includes("SOFTWARE")) return false;
-        if (selUpper.includes("AI") && !catUpper.includes("DATA_SCIENCE")) return false;
-        if (selUpper.includes("SECURITY") && !catUpper.includes("SECURITY")) return false;
-        if (selUpper.includes("BUSINESS") && !catUpper.includes("BUSINESS") && !catUpper.includes("LEADERSHIP")) return false;
-        if (selUpper.includes("DESIGN") && !catUpper.includes("DESIGN")) return false;
+        const catUpper = (c.category || "").toUpperCase();
+        const titleUpper = (c.title || "").toUpperCase();
+        const descUpper = (c.description || "").toUpperCase();
+
+        if (selectedCategory === "AI & Data Science") {
+          const matchesCat =
+            catUpper === "DATA_SCIENCE" ||
+            catUpper === "AI" ||
+            catUpper.includes("AI") ||
+            catUpper.includes("DATA");
+          const matchesContent =
+            titleUpper.includes("AI") ||
+            titleUpper.includes("LLM") ||
+            titleUpper.includes("DATA SCIENCE") ||
+            titleUpper.includes("AGENTS") ||
+            descUpper.includes("AI") ||
+            descUpper.includes("LLM");
+          if (!matchesCat && !matchesContent) return false;
+        } else if (selectedCategory === "Cloud & Distributed Systems") {
+          const matchesCat =
+            catUpper === "CLOUD" ||
+            catUpper === "DISTRIBUTED" ||
+            catUpper === "SECURITY" ||
+            catUpper.includes("CLOUD");
+          const matchesContent =
+            titleUpper.includes("CLOUD") ||
+            titleUpper.includes("DISTRIBUTED") ||
+            titleUpper.includes("SECURITY") ||
+            titleUpper.includes("ZERO-TRUST") ||
+            titleUpper.includes("DEVSECOPS") ||
+            titleUpper.includes("KUBERNETES") ||
+            descUpper.includes("CLOUD") ||
+            descUpper.includes("DISTRIBUTED");
+          if (!matchesCat && !matchesContent) return false;
+        } else if (selectedCategory === "Software Engineering") {
+          const matchesCat =
+            catUpper === "SOFTWARE" ||
+            catUpper.includes("SOFTWARE") ||
+            catUpper.includes("ENGINEERING");
+          const matchesContent =
+            titleUpper.includes("SOFTWARE") ||
+            titleUpper.includes("GIT") ||
+            titleUpper.includes("ENGINEERING") ||
+            titleUpper.includes("FULL-STACK") ||
+            descUpper.includes("ENGINEERING");
+          if (!matchesCat && !matchesContent) return false;
+        } else if (selectedCategory === "UI/UX Design") {
+          const matchesCat =
+            catUpper === "DESIGN" ||
+            catUpper === "UI_UX" ||
+            catUpper.includes("DESIGN") ||
+            catUpper.includes("UI");
+          const matchesContent =
+            titleUpper.includes("DESIGN") ||
+            titleUpper.includes("UI") ||
+            titleUpper.includes("UX") ||
+            descUpper.includes("DESIGN");
+          if (!matchesCat && !matchesContent) return false;
+        } else if (selectedCategory === "Leadership") {
+          const matchesCat =
+            catUpper === "LEADERSHIP" ||
+            catUpper === "BUSINESS" ||
+            catUpper.includes("LEAD");
+          const matchesContent =
+            titleUpper.includes("LEADERSHIP") ||
+            titleUpper.includes("MANAGEMENT") ||
+            titleUpper.includes("STAFF") ||
+            descUpper.includes("LEADERSHIP");
+          if (!matchesCat && !matchesContent) return false;
+        }
       }
 
       // 3. Price filter

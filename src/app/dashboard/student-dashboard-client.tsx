@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   GraduationCap,
@@ -16,8 +16,9 @@ import {
   ShieldCheck,
   ExternalLink,
   Layers,
+  Receipt,
+  RefreshCw,
 } from "lucide-react";
-import { RoleSwitcher } from "@/components/layout/role-switcher";
 import { CertificateModal, type CertificateRecord } from "@/components/player/certificate-modal";
 import type { SessionUser } from "@/types";
 
@@ -43,6 +44,7 @@ interface StudentDashboardClientProps {
   courses: EnrolledCourseItem[];
   wallet: any;
   certificates: any[];
+  transactions?: any[];
 }
 
 export function StudentDashboardClient({
@@ -50,10 +52,34 @@ export function StudentDashboardClient({
   courses,
   wallet,
   certificates,
+  transactions = [],
 }: StudentDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<"enrolled" | "certificates">("enrolled");
   const [selectedCert, setSelectedCert] = useState<CertificateRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [transactionList, setTransactionList] = useState<any[]>(transactions);
+  const [isRefreshingTx, setIsRefreshingTx] = useState(false);
+
+  const fetchTransactions = async () => {
+    try {
+      setIsRefreshingTx(true);
+      const res = await fetch("/api/wallet");
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.transactions)) {
+        setTransactionList(data.transactions);
+      }
+    } catch {} finally {
+      setIsRefreshingTx(false);
+    }
+  };
+
+  useEffect(() => {
+    if (transactions && transactions.length > 0) {
+      setTransactionList(transactions);
+    } else {
+      fetchTransactions();
+    }
+  }, [transactions]);
 
   const walletBalance = wallet ? wallet.balance_dollars : 500.0;
   const totalWeeksEnrolled = courses.reduce((acc, c) => acc + (c.total_weeks || 1), 0);
@@ -74,9 +100,6 @@ export function StudentDashboardClient({
 
   return (
     <div className="space-y-8 pb-12">
-      {/* 1-Click Role Switcher Bar */}
-      <RoleSwitcher initialUser={currentUser} walletBalance={walletBalance} />
-
       {/* Header Profile & Wallet Card */}
       <section className="backdrop-blur-xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border border-slate-700/60 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -124,6 +147,89 @@ export function StudentDashboardClient({
           </Link>
         </div>
       </section>
+
+      {/* Interactive Student Wallet Transaction History Ledger */}
+      <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-emerald-500" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Transaction History Ledger
+            </h3>
+            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              {transactionList.length} Transactions
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchTransactions}
+            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center gap-1.5 transition-colors font-medium"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingTx ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        {transactionList.length === 0 ? (
+          <div className="text-xs text-slate-500 dark:text-slate-400 py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+            No transactions recorded yet. Browse the course marketplace to purchase a course with your simulated wallet!
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">
+                  <th className="pb-2">Date</th>
+                  <th className="pb-2">Course Name</th>
+                  <th className="pb-2">Type</th>
+                  <th className="pb-2">Status</th>
+                  <th className="pb-2 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {transactionList.map((tx) => {
+                  const amountDollars =
+                    tx.amount_dollars ??
+                    (tx.amount_cents ? tx.amount_cents / 100 : (tx.amount ? tx.amount / 100 : 0));
+                  return (
+                    <tr
+                      key={tx.id}
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                    >
+                      <td className="py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {tx.created_at
+                          ? new Date(tx.created_at).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "Recent"}
+                      </td>
+                      <td className="py-2.5 font-medium text-slate-900 dark:text-white">
+                        {tx.course_title || "Course Purchase"}
+                      </td>
+                      <td className="py-2.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          {tx.type || "PURCHASE"}
+                        </span>
+                      </td>
+                      <td className="py-2.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-fit">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>{tx.status || "COMPLETED"}</span>
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                        -${amountDollars.toFixed(2)} USD
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -261,25 +367,74 @@ export function StudentDashboardClient({
                   </span>
                 </div>
 
-                {/* Progress Bar (completed_lessons / total_lessons * 100) */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span>
-                      Current: {cohort.current_lesson || `Week 1 Lesson`}
-                    </span>
-                    <span>
-                      {cohort.completed_lessons}/{cohort.total_lessons || cohort.total_weeks} Lessons ({cohort.progress_pct}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        cohort.progress_pct === 100 ? "bg-emerald-500" : "bg-brand-600"
-                      }`}
-                      style={{ width: `${cohort.progress_pct}%` }}
-                    />
-                  </div>
-                </div>
+                {/* Live Weekly Progress Bars & Multi-Week Milestones */}
+                {(() => {
+                  const totalWeeks = Math.max(1, cohort.total_weeks || 1);
+                  const completedWeeks =
+                    cohort.progress_pct === 100
+                      ? totalWeeks
+                      : Math.min(totalWeeks, Math.floor((cohort.progress_pct / 100) * totalWeeks));
+
+                  return (
+                    <div className="space-y-2.5">
+                      {/* Weekly Progress Milestone Header */}
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          Live Weekly Progress: {completedWeeks} of {totalWeeks} Weeks Completed
+                        </span>
+                        <span>
+                          {cohort.completed_lessons || 0}/{cohort.total_lessons || totalWeeks} Lessons ({cohort.progress_pct}%)
+                        </span>
+                      </div>
+
+                      {/* Multi-Week Milestone Segmented Progress Bars */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
+                        {Array.from({ length: totalWeeks }).map((_, wIdx) => {
+                          const weekNum = wIdx + 1;
+                          const isWeekDone = weekNum <= completedWeeks;
+                          const isWeekActive = weekNum === completedWeeks + 1 && cohort.progress_pct < 100;
+
+                          return (
+                            <div
+                              key={weekNum}
+                              className={`rounded-lg p-2 border text-[11px] flex flex-col justify-between transition-all ${
+                                isWeekDone
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                  : isWeekActive
+                                  ? "bg-brand-500/15 border-brand-500/40 text-brand-300 ring-1 ring-brand-500/30"
+                                  : "bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold">W{weekNum}</span>
+                                {isWeekDone ? (
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                ) : isWeekActive ? (
+                                  <Clock className="w-3 h-3 text-brand-400 animate-pulse" />
+                                ) : (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                )}
+                              </div>
+                              <span className="text-[9px] font-medium mt-1 truncate">
+                                {isWeekDone ? "Completed" : isWeekActive ? "Active" : "Upcoming"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Continuous Progress Bar */}
+                      <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            cohort.progress_pct === 100 ? "bg-emerald-500" : "bg-brand-600"
+                          }`}
+                          style={{ width: `${cohort.progress_pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/60">

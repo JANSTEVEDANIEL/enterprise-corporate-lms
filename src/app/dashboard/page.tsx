@@ -8,6 +8,7 @@ export default async function StudentDashboardPage() {
   const courses = await dbAdapter.getEnrolledCourses(currentUser.id);
   const wallet = await dbAdapter.getWallet(currentUser.id);
   const certificates = await dbAdapter.getCertificatesForUser(currentUser.id);
+  const transactions = await dbAdapter.getTransactionsForUser(currentUser.id);
 
   return (
     <StudentDashboardClient
@@ -15,6 +16,7 @@ export default async function StudentDashboardPage() {
       courses={courses}
       wallet={wallet}
       certificates={certificates}
+      transactions={transactions}
     />
   );
 }

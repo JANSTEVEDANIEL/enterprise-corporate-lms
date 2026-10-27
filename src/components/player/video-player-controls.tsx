@@ -192,7 +192,10 @@ export function VideoPlayerControls({
 
       {/* Completion Pill Overlay */}
       {hasAutoCompleted && (
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-xs font-bold backdrop-blur-md shadow-lg transition-all animate-in fade-in">
+        <div
+          className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-xs font-bold backdrop-blur-md shadow-lg transition-all animate-in fade-in"
+          data-testid="video-completed-badge"
+        >
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>90%+ Completed</span>
         </div>

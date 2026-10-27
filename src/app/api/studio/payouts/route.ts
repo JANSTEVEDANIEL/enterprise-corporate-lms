@@ -23,11 +23,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Get payouts
-    const payouts = db
-      .prepare(
-        "SELECT * FROM payouts WHERE creator_id = ? ORDER BY requested_at DESC"
-      )
-      .all(creatorId) as any[];
+    let payouts: any[];
+    if (user.role === "SUPER_ADMIN" && !queryCreatorId) {
+      payouts = db
+        .prepare(`
+          SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name, u.email as creator_email
+          FROM payouts p
+          LEFT JOIN users u ON p.creator_id = u.id
+          ORDER BY p.requested_at DESC
+        `)
+        .all() as any[];
+    } else {
+      payouts = db
+        .prepare(`
+          SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name, u.email as creator_email
+          FROM payouts p
+          LEFT JOIN users u ON p.creator_id = u.id
+          WHERE p.creator_id = ?
+          ORDER BY p.requested_at DESC
+        `)
+        .all(creatorId) as any[];
+    }
 
     const enhancedPayouts = payouts.map((p) => ({
       ...p,
@@ -156,3 +172,77 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    initDb();
+    const db = getDb();
+    const user = await getCurrentUser(request);
+
+    const body = await request.json().catch(() => ({}));
+    const url = new URL(request.url);
+    const payoutId =
+      body.payout_id ||
+      body.id ||
+      url.searchParams.get("payout_id") ||
+      url.searchParams.get("id");
+    const status = body.status || "PROCESSED";
+
+    if (!payoutId) {
+      return NextResponse.json(
+        { success: false, error: "Missing required parameter: payout_id" },
+        { status: 400 }
+      );
+    }
+
+    const existingPayout = db
+      .prepare("SELECT * FROM payouts WHERE id = ?")
+      .get(payoutId) as any;
+    if (!existingPayout) {
+      return NextResponse.json(
+        { success: false, error: `Payout not found: ${payoutId}` },
+        { status: 404 }
+      );
+    }
+
+    const now = new Date().toISOString();
+    db.prepare("UPDATE payouts SET status = ?, processed_at = ? WHERE id = ?").run(
+      status,
+      now,
+      payoutId
+    );
+    try {
+      db.prepare(
+        "UPDATE payout_requests SET status = ?, processed_at = ? WHERE id = ?"
+      ).run(status, now, payoutId);
+    } catch {}
+
+    const updatedPayout = db
+      .prepare(`
+        SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name
+        FROM payouts p
+        LEFT JOIN users u ON p.creator_id = u.id
+        WHERE p.id = ?
+      `)
+      .get(payoutId) as any;
+
+    return NextResponse.json({
+      success: true,
+      payout: {
+        ...updatedPayout,
+        amount_cents: updatedPayout.amount_cents ?? updatedPayout.amount ?? 0,
+        amount_dollars: Number(
+          ((updatedPayout.amount_cents ?? updatedPayout.amount ?? 0) / 100).toFixed(2)
+        ),
+        status,
+        processed_at: now,
+      },
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to process payout" },
+      { status: 500 }
+    );
+  }
+}
+

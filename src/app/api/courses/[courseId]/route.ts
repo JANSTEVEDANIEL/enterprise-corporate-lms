@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit";
+import { maskCourseTitle } from "@/lib/privacy";
 
 export async function GET(
   request: NextRequest,
@@ -59,7 +60,7 @@ export async function GET(
       ORDER BY m.order_index ASC
     `);
 
-    const modules = modulesStmt.all(enrollment?.id || null, course.id);
+    const modules = modulesStmt.all(enrollment?.id || null, course.id) as any[];
 
     // Fetch certificate if completed
     let certificate = null;
@@ -68,10 +69,29 @@ export async function GET(
       certificate = certStmt.get(enrollment.id) as any;
     }
 
+    // If currentUser.role === 'SUPER_ADMIN', mask title and redact raw module/lesson video URLs
+    let responseCourse = course;
+    let responseModules = modules;
+
+    if (currentUser.role === "SUPER_ADMIN") {
+      responseCourse = {
+        ...course,
+        title: maskCourseTitle(course.title),
+        is_content_encrypted: true,
+        thumbnail_blurred: true,
+      };
+      responseModules = modules.map((m: any) => ({
+        ...m,
+        video_url: null,
+        content: "[Content Encrypted - Super Admin Restricted]",
+        supplementary_files: [],
+      }));
+    }
+
     return NextResponse.json({
       success: true,
-      course,
-      modules,
+      course: responseCourse,
+      modules: responseModules,
       enrollment: enrollment || null,
       certificate: certificate || null,
     });

@@ -20,8 +20,15 @@ export default async function MarketplacePage() {
     studentId = "usr_sophia_chen";
   }
 
+  // Strictly filter out legacy corporate compliance & onboarding courses
+  const corporateCategories = new Set(["ONBOARDING", "COMPLIANCE", "TECHNICAL_UPSKILLING"]);
+  const marketplaceCourses = rawCourses.filter((course) => {
+    const cat = (course.category || "").toUpperCase();
+    return !corporateCategories.has(cat);
+  });
+
   const enhancedCourses = await Promise.all(
-    rawCourses.map(async (course) => {
+    marketplaceCourses.map(async (course) => {
       let isEnrolled = false;
       if (studentId) {
         try {

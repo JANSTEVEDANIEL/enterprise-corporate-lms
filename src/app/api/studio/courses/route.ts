@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
 
     // Enhance each course with sales count, gross revenue, and weeks count
     let totalGrossCents = 0;
+    let totalPlatformFeeCents = 0;
     let totalNetCents = 0;
     const allEnrolledStudents = new Set<string>();
 
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
         .prepare(
           `SELECT 
             COALESCE(SUM(amount_cents), 0) as gross_cents,
+            COALESCE(SUM(platform_fee_cents), 0) as platform_fee_cents,
             COALESCE(SUM(creator_payout_cents), 0) as net_cents
           FROM transactions 
           WHERE course_id = ? AND status = 'COMPLETED'`
@@ -82,9 +84,11 @@ export async function GET(request: NextRequest) {
         .get(course.id) as any;
 
       const grossCents = txStats?.gross_cents ?? 0;
-      const netCents = txStats?.net_cents ?? Math.round(grossCents * 0.9);
+      const feeCents = txStats?.platform_fee_cents ?? Math.round(grossCents * 0.1);
+      const netCents = txStats?.net_cents ?? (grossCents - feeCents);
 
       totalGrossCents += grossCents;
+      totalPlatformFeeCents += feeCents;
       totalNetCents += netCents;
 
       const enrolledUsers = db
@@ -106,6 +110,8 @@ export async function GET(request: NextRequest) {
         sales_count: salesCount,
         gross_revenue_cents: grossCents,
         gross_revenue_dollars: Number((grossCents / 100).toFixed(2)),
+        platform_fee_cents: feeCents,
+        platform_fee_dollars: Number((feeCents / 100).toFixed(2)),
         creator_earnings_cents: netCents,
         creator_earnings_dollars: Number((netCents / 100).toFixed(2)),
         total_weeks: Math.max(weeksCount, course.total_weeks ?? 1),
@@ -125,6 +131,8 @@ export async function GET(request: NextRequest) {
       analytics: {
         total_gross_cents: totalGrossCents,
         total_gross_dollars: Number((totalGrossCents / 100).toFixed(2)),
+        total_platform_fee_cents: totalPlatformFeeCents,
+        total_platform_fee_dollars: Number((totalPlatformFeeCents / 100).toFixed(2)),
         total_net_cents: totalNetCents,
         total_net_dollars: Number((totalNetCents / 100).toFixed(2)),
         total_courses: enhancedCourses.length,
