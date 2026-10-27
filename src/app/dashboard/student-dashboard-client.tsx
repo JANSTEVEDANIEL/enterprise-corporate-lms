@@ -74,10 +74,8 @@ export function StudentDashboardClient({
   };
 
   useEffect(() => {
-    if (transactions && transactions.length > 0) {
+    if (Array.isArray(transactions) && transactions.length > 0) {
       setTransactionList(transactions);
-    } else {
-      fetchTransactions();
     }
   }, [transactions]);
 

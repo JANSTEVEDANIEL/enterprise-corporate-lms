@@ -9,6 +9,8 @@
     "start": "next start",
     "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "supabase:migrate": "tsx scripts/supabase-migrate.ts",
+    "supabase:seed": "tsx scripts/seed-supabase.ts",
     "simulate": "tsx scripts/simulate.ts"
   },
   "dependencies": {

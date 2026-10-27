@@ -20,7 +20,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className="h-full dark" suppressHydrationWarning>
-      <body className="h-full flex flex-col font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+      <body className="h-full flex flex-col font-sans antialiased bg-[#090D16] text-slate-100 selection:bg-indigo-500/30 selection:text-indigo-200">
         <RoleSwitcher initialUser={currentUser} />
         <Navbar currentUser={currentUser} />
         <AppLayoutShell currentUser={currentUser}>

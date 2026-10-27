@@ -29,29 +29,18 @@ export default async function HomePage() {
     return !corporateCategories.has(cat);
   });
 
-  const enhancedCourses = await Promise.all(
-    marketplaceCourses.map(async (course) => {
-      let isEnrolled = false;
-      if (studentId) {
-        try {
-          isEnrolled = await dbAdapter.isUserEnrolled(studentId, course.id);
-        } catch {
-          isEnrolled = false;
-        }
-      }
+  const enrolledSet = studentId ? await dbAdapter.getEnrolledCourseIds(studentId) : new Set<string>();
 
-      return {
-        ...course,
-        price_dollars:
-          course.price_dollars !== undefined
-            ? course.price_dollars
-            : course.price_cents
-            ? Number((course.price_cents / 100).toFixed(2))
-            : course.price ?? 0,
-        is_enrolled: isEnrolled,
-      };
-    })
-  );
+  const enhancedCourses = marketplaceCourses.map((course) => ({
+    ...course,
+    price_dollars:
+      course.price_dollars !== undefined
+        ? course.price_dollars
+        : course.price_cents
+        ? Number((course.price_cents / 100).toFixed(2))
+        : course.price ?? 0,
+    is_enrolled: enrolledSet.has(course.id),
+  }));
 
   return (
     <MarketplaceCatalog

@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { randomUUID } from "node:crypto";
+import { dbAdapter } from "@/lib/supabase/adapter";
 
 export async function GET(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
     const user = await getCurrentUser(request);
 
     let creatorId = user.id;
@@ -16,47 +13,15 @@ export async function GET(request: NextRequest) {
     if (queryCreatorId) {
       creatorId = queryCreatorId;
     } else if (user.role !== "CO_ADMIN" && user.role !== "SUPER_ADMIN") {
-      const coAdmin = db.prepare("SELECT id FROM users WHERE role = 'CO_ADMIN' LIMIT 1").get() as any;
-      if (coAdmin) {
-        creatorId = coAdmin.id;
-      }
+      creatorId = "usr_aris_thorne";
     }
 
-    // Get payouts
-    let payouts: any[];
-    if (user.role === "SUPER_ADMIN" && !queryCreatorId) {
-      payouts = db
-        .prepare(`
-          SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name, u.email as creator_email
-          FROM payouts p
-          LEFT JOIN users u ON p.creator_id = u.id
-          ORDER BY p.requested_at DESC
-        `)
-        .all() as any[];
-    } else {
-      payouts = db
-        .prepare(`
-          SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name, u.email as creator_email
-          FROM payouts p
-          LEFT JOIN users u ON p.creator_id = u.id
-          WHERE p.creator_id = ?
-          ORDER BY p.requested_at DESC
-        `)
-        .all(creatorId) as any[];
-    }
+    const payouts = await dbAdapter.getPayouts(
+      user.role === "SUPER_ADMIN" && !queryCreatorId ? undefined : creatorId
+    );
 
-    const enhancedPayouts = payouts.map((p) => ({
-      ...p,
-      amount_cents: p.amount_cents ?? p.amount ?? 0,
-      amount_dollars: Number(((p.amount_cents ?? p.amount ?? 0) / 100).toFixed(2)),
-    }));
-
-    // Get creator wallet
-    const wallet = db
-      .prepare("SELECT * FROM wallets WHERE user_id = ?")
-      .get(creatorId) as any;
-
-    const balanceCents = wallet?.balance_cents ?? wallet?.balance ?? 0;
+    const wallet = await dbAdapter.getWallet(creatorId);
+    const balanceCents = wallet?.balance_cents ?? 0;
 
     return NextResponse.json({
       success: true,
@@ -66,7 +31,7 @@ export async function GET(request: NextRequest) {
         balance_dollars: Number((balanceCents / 100).toFixed(2)),
         currency: wallet?.currency || "USD",
       },
-      payouts: enhancedPayouts,
+      payouts,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -78,8 +43,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
     const user = await getCurrentUser(request);
 
     let creatorId = user.id;
@@ -88,10 +51,7 @@ export async function POST(request: NextRequest) {
     if (body.creator_id) {
       creatorId = body.creator_id;
     } else if (user.role !== "CO_ADMIN" && user.role !== "SUPER_ADMIN") {
-      const coAdmin = db.prepare("SELECT id FROM users WHERE role = 'CO_ADMIN' LIMIT 1").get() as any;
-      if (coAdmin) {
-        creatorId = coAdmin.id;
-      }
+      creatorId = "usr_aris_thorne";
     }
 
     const rawAmount = body.amount_cents ?? (body.amount ? Math.round(Number(body.amount) * 100) : 0);
@@ -104,9 +64,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check wallet balance
-    const wallet = db.prepare("SELECT * FROM wallets WHERE user_id = ?").get(creatorId) as any;
-    const currentBalance = wallet ? (wallet.balance_cents ?? wallet.balance ?? 0) : 0;
+    const wallet = await dbAdapter.getWallet(creatorId);
+    const currentBalance = wallet?.balance_cents ?? 0;
 
     if (currentBalance < amountCents) {
       return NextResponse.json(
@@ -120,43 +79,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = new Date().toISOString();
-    const payoutId = `po_${randomUUID().slice(0, 8)}`;
     const notes = body.notes?.trim() || null;
-
-    // Deduct from wallet
-    db.prepare(
-      `UPDATE wallets 
-       SET balance = balance - ?, balance_cents = balance_cents - ?, updated_at = ? 
-       WHERE user_id = ?`
-    ).run(amountCents, amountCents, now, creatorId);
-
-    // Insert into payouts
-    db.prepare(
-      `INSERT INTO payouts (id, creator_id, amount, amount_cents, status, requested_at, processed_at, notes)
-       VALUES (?, ?, ?, ?, 'PENDING', ?, NULL, ?)`
-    ).run(payoutId, creatorId, amountCents, amountCents, now, notes);
-
-    // Also record into payout_requests
-    try {
-      db.prepare(
-        `INSERT INTO payout_requests (id, creator_id, amount, amount_cents, status, created_at, requested_at, processed_at, notes)
-         VALUES (?, ?, ?, ?, 'PENDING', ?, ?, NULL, ?)`
-      ).run(payoutId, creatorId, amountCents, amountCents, now, now, notes);
-    } catch {}
-
-    const newBalance = currentBalance - amountCents;
+    const payout = await dbAdapter.createPayoutRequest(creatorId, amountCents, notes);
+    const updatedWallet = await dbAdapter.getWallet(creatorId);
+    const newBalance = updatedWallet?.balance_cents ?? (currentBalance - amountCents);
 
     return NextResponse.json(
       {
         success: true,
         payout: {
-          id: payoutId,
+          id: payout.id,
           creator_id: creatorId,
           amount_cents: amountCents,
           amount_dollars: Number((amountCents / 100).toFixed(2)),
           status: "PENDING",
-          requested_at: now,
+          requested_at: payout.requested_at,
           processed_at: null,
           notes,
         },
@@ -175,10 +112,6 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
-    const user = await getCurrentUser(request);
-
     const body = await request.json().catch(() => ({}));
     const url = new URL(request.url);
     const payoutId =
@@ -195,48 +128,17 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const existingPayout = db
-      .prepare("SELECT * FROM payouts WHERE id = ?")
-      .get(payoutId) as any;
-    if (!existingPayout) {
+    const updatedPayout = await dbAdapter.processPayout(payoutId, status);
+    if (!updatedPayout) {
       return NextResponse.json(
         { success: false, error: `Payout not found: ${payoutId}` },
         { status: 404 }
       );
     }
 
-    const now = new Date().toISOString();
-    db.prepare("UPDATE payouts SET status = ?, processed_at = ? WHERE id = ?").run(
-      status,
-      now,
-      payoutId
-    );
-    try {
-      db.prepare(
-        "UPDATE payout_requests SET status = ?, processed_at = ? WHERE id = ?"
-      ).run(status, now, payoutId);
-    } catch {}
-
-    const updatedPayout = db
-      .prepare(`
-        SELECT p.*, COALESCE(u.name, p.creator_id) as creator_name
-        FROM payouts p
-        LEFT JOIN users u ON p.creator_id = u.id
-        WHERE p.id = ?
-      `)
-      .get(payoutId) as any;
-
     return NextResponse.json({
       success: true,
-      payout: {
-        ...updatedPayout,
-        amount_cents: updatedPayout.amount_cents ?? updatedPayout.amount ?? 0,
-        amount_dollars: Number(
-          ((updatedPayout.amount_cents ?? updatedPayout.amount ?? 0) / 100).toFixed(2)
-        ),
-        status,
-        processed_at: now,
-      },
+      payout: updatedPayout,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -245,4 +147,3 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
-

@@ -222,3 +222,61 @@ Integrity mode: development
 ### Verification & Build
 - [ ] Production build (`npm run build`) compiles cleanly with zero TypeScript errors.
 - [ ] Full automated test suite passes (`npm test`) with zero failures.
+
+
+## Follow-up — 2026-10-27T09:48:34Z
+
+Build a production-grade, multi-sided EdTech Course Marketplace (Udemy/Coursera/Reforge tier) powered directly by the user's live Supabase Cloud project (`ldnvbephtdnignivbgra.supabase.co`), featuring real cloud database tables, Supabase Storage uploads, authenticated role portals, an uncompromising Creator Privacy Shield, and an executive-grade UI/UX design system.
+
+Working directory: /Users/janstevedaniel/Downloads/LMS FOR GAURAV
+Integrity mode: development
+
+## Requirements
+
+### R1. Live Supabase Cloud Database Architecture & Data Sync
+- Execute SQL migrations directly on the user's live Supabase PostgreSQL instance (`ldnvbephtdnignivbgra.supabase.co`) via the Supabase Management API (`https://api.supabase.com/v1/projects/ldnvbephtdnignivbgra/database/query`) using the user's personal access token (`[REDACTED_SUPABASE_PAT]`):
+  - Adapt schemas to support custom string IDs (`crs_*`, `wk_*`, `les_*`, `qz_*`, `usr_*`, `wal_*`, `tx_*`, `po_*`) across all tables.
+  - Create and configure tables: `users`, `courses`, `weeks`, `lessons`, `week_quizzes`, `wallets`, `transactions`, `payouts`, `enrollments`, `lesson_progress`, and `certificates`.
+- Seed all 7 authentic marketplace courses (35 sequential weeks, 66 lessons, 104 attachments, 35 quizzes with rationales) directly into the live Supabase cloud database so the user's Supabase project dashboard is completely populated.
+- Update `DbAdapter` (`src/lib/supabase/adapter.ts`) and all API routes so that production and development environments perform real queries against `@supabase/supabase-js`, reading and writing directly to the live Supabase cloud database.
+
+### R2. Real Cloud File & Video Storage (Supabase Storage Buckets)
+- Provision live Supabase Storage buckets (`course-materials` and `lesson-videos`) using the Supabase Management API.
+- Implement real Co-Admin drag-and-drop file upload in the Creator Studio (`/studio/courses/new` and `/studio/courses/[id]/edit`):
+  - Direct upload to Supabase Storage via `supabase.storage.from('course-materials').upload(...)` and `supabase.storage.from('lesson-videos').upload(...)`.
+  - Store public or signed file URLs in the live Supabase `lessons` and `courses` tables.
+
+### R3. Bespoke Executive-Tier UI/UX Overhaul (Anti-Generic Redesign)
+- Completely overhaul the visual design system to eliminate any generic AI-generated feel:
+  - Theme: Modern Executive Dark/Slate (Obsidian `#090D16`, `#0F172A`, refined border contrasts `border-slate-800/80`, subtle Indigo/Cyan ambient glow `#6366F1` / `#06B6D4`).
+  - Typography: Refined typographic scale with clear visual hierarchy, crisp metadata pills, and custom micro-badges.
+  - Marketplace Homepage (`/`): Immersive hero section with real platform metrics, smooth animated category filter tabs, interactive high-contrast course cards with instructor credentials, real student review stars, and a streamlined 1-click checkout modal.
+  - Student Learning Player (`/dashboard/courses/[id]`): Cinema-grade video player with seamless playback controls (`0.75x`, `1x`, `1.25x`, `1.5x`, `2x`), responsive multi-week curriculum drawer, and tabbed resource panel with stylized download cards and interactive quiz feedback cards.
+
+### R4. Three Pure Role Portals & Creator Content Privacy Shield
+- **Student Hub (`/dashboard`)**: Displays live enrolled courses from Supabase, student wallet balance card ($500.00 pre-funded test balance) with real transaction ledger from Supabase `transactions`, and cryptographically signed certificates.
+- **Co-Admin Creator Studio (`/studio`)**: Live earnings analytics from Supabase (100% Gross, 10% Platform Fee, 90% Creator Net), course management table, and payout request submission storing records in Supabase `payouts`.
+- **Super Admin Platform Provider (`/admin`)**: Global GMV and platform commission ledger, creator payout approval console, and the **Creator Content Privacy Shield** strictly returning HTTP 403 `FORBIDDEN_SUPER_ADMIN_CONTENT_GATE` when attempting to access raw video URLs or downloadable attachments, with masked titles and blurred thumbnails.
+
+### R5. Comprehensive Automated Verification & Build Parity
+- Full automated test suite verifying live Supabase integration, storage upload endpoints, financial ledger integrity, privacy shield enforcement, and UI component rendering.
+- Clean Next.js 15 production build (`npm run build`) with zero TypeScript errors.
+
+---
+
+## Acceptance Criteria
+
+### Live Supabase Cloud Integration
+- [ ] Querying `https://ldnvbephtdnignivbgra.supabase.co` confirms all 11 tables exist with data: all 7 courses, 35 weeks, 66 lessons, 35 quizzes, and users are visible in the Supabase Cloud dashboard.
+- [ ] Application reads and writes data directly to/from Supabase PostgreSQL.
+- [ ] Storage buckets `course-materials` and `lesson-videos` are provisioned and handle file uploads.
+
+### UI/UX & Design Polish
+- [ ] Marketplace homepage (`/`) has an executive, custom-designed feel with rich hero, category pills, course cards, and zero boilerplate AI appearance.
+- [ ] Learning player (`/dashboard/courses/[id]`) provides a cinema-grade video experience with exact speed toggles (`0.75x..2x`), tabbed drawer, and instant quiz grading with rationales.
+- [ ] Responsive across mobile, tablet, and desktop breakpoints.
+
+### Functional Integrity & Security
+- [ ] Student purchases deduct from Supabase wallet and record transaction split (10% platform / 90% creator).
+- [ ] Super Admin is strictly blocked (HTTP 403) from streaming creator videos and downloading lab files.
+- [ ] `npm test` and `npm run build` pass with 100% success rate.

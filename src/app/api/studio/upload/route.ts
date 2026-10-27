@@ -22,10 +22,19 @@ export async function POST(request: NextRequest) {
       const originalName = file.name || "upload.bin";
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const ext = originalName.split(".").pop() || "bin";
-      const storageKey = `uploads/${randomUUID().slice(0, 8)}_${Date.now()}.${ext}`;
+      const isVideo = typeHint === "VIDEO" || file.type.startsWith("video/");
+      const ext = originalName.includes(".") ? originalName.split(".").pop() : (isVideo ? "mp4" : "bin");
+      const bucketName = isVideo ? "lesson-videos" : "course-materials";
+      const storageKey = isVideo
+        ? `videos/${randomUUID().slice(0, 8)}_${Date.now()}.${ext}`
+        : `materials/${randomUUID().slice(0, 8)}_${Date.now()}.${ext}`;
 
-      const { url, error } = await uploadMediaFile(storageKey, buffer, file.type || "application/octet-stream");
+      const { url, error } = await uploadMediaFile(
+        storageKey,
+        buffer,
+        file.type || (isVideo ? "video/mp4" : "application/octet-stream"),
+        bucketName
+      );
 
       if (error && !url) {
         return NextResponse.json({ success: false, error }, { status: 500 });

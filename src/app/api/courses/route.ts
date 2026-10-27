@@ -4,16 +4,31 @@ import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit";
 import { sanitizeCourseCatalogForRole } from "@/lib/privacy";
+import { dbAdapter, isOfflineMode } from "@/lib/supabase/adapter";
 
 export async function GET(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
     const currentUser = await getCurrentUser(request);
 
     const searchParams = request.nextUrl.searchParams;
     const category = searchParams.get("category");
     const query = searchParams.get("query") || searchParams.get("search");
+
+    if (!isOfflineMode()) {
+      const courses = await dbAdapter.getCourses({
+        category: category || undefined,
+        search: query || undefined,
+      });
+      const sanitizedCourses = sanitizeCourseCatalogForRole(courses, currentUser.role);
+      return NextResponse.json({
+        success: true,
+        courses: sanitizedCourses,
+        count: sanitizedCourses.length,
+      });
+    }
+
+    initDb();
+    const db = getDb();
 
     let sql = `
       SELECT 

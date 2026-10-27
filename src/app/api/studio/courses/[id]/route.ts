@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { dbAdapter } from "@/lib/supabase/adapter";
+import { getDb, initDb } from "@/lib/db";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    initDb();
-    const db = getDb();
     const currentUser = await getCurrentUser(request);
     if (currentUser.role === "SUPER_ADMIN") {
       return NextResponse.json(
@@ -18,7 +18,7 @@ export async function GET(
     }
     const { id: courseId } = await params;
 
-    const course = db.prepare("SELECT * FROM courses WHERE id = ?").get(courseId) as any;
+    const course = await dbAdapter.getCourseById(courseId);
     if (!course) {
       return NextResponse.json(
         { success: false, error: `Course not found: ${courseId}` },
@@ -26,67 +26,45 @@ export async function GET(
       );
     }
 
-    // Fetch weeks and lessons
-    const weeks = db
-      .prepare("SELECT * FROM weeks WHERE course_id = ? ORDER BY week_number ASC")
-      .all(courseId) as any[];
+    const weeks = await dbAdapter.getCurriculum(courseId);
 
-    for (const week of weeks) {
-      const lessons = db
-        .prepare("SELECT * FROM lessons WHERE week_id = ? ORDER BY order_index ASC")
-        .all(week.id) as any[];
+    let salesCount = 0;
+    let grossCents = 0;
+    let netCents = 0;
 
-      for (const l of lessons) {
-        if (typeof l.supplementary_files === "string") {
-          try {
-            l.supplementary_files = JSON.parse(l.supplementary_files);
-          } catch {
-            l.supplementary_files = [];
-          }
+    if (dbAdapter.isOffline) {
+      initDb();
+      const db = getDb();
+      salesCount = (
+        db.prepare("SELECT COUNT(*) as count FROM enrollments WHERE course_id = ?").get(courseId) as any
+      )?.count ?? 0;
+
+      const txStats = db
+        .prepare(
+          `SELECT 
+            COALESCE(SUM(amount_cents), 0) as gross_cents,
+            COALESCE(SUM(creator_payout_cents), 0) as net_cents
+          FROM transactions 
+          WHERE course_id = ? AND status = 'COMPLETED'`
+        )
+        .get(courseId) as any;
+
+      grossCents = txStats?.gross_cents ?? 0;
+      netCents = txStats?.net_cents ?? Math.round(grossCents * 0.9);
+    } else {
+      const supabase = getSupabaseAdminClient();
+      if (supabase) {
+        const [salesRes, txRes] = await Promise.all([
+          supabase.from("enrollments").select("id", { count: "exact", head: true }).eq("course_id", courseId),
+          supabase.from("transactions").select("amount_cents, creator_payout_cents").eq("course_id", courseId).eq("status", "COMPLETED"),
+        ]);
+        salesCount = salesRes.count || 0;
+        for (const t of txRes.data || []) {
+          grossCents += t.amount_cents || 0;
+          netCents += t.creator_payout_cents || 0;
         }
-      }
-      week.lessons = lessons;
-
-      // Load quiz for this week
-      try {
-        const quiz = db
-          .prepare("SELECT * FROM week_quizzes WHERE week_id = ?")
-          .get(week.id) as any;
-        if (quiz) {
-          if (typeof quiz.questions === "string") {
-            try {
-              quiz.questions = JSON.parse(quiz.questions);
-            } catch {
-              quiz.questions = [];
-            }
-          }
-          week.quiz = quiz;
-        } else {
-          week.quiz = null;
-        }
-      } catch {
-        week.quiz = null;
       }
     }
-
-    const salesCount = (
-      db
-        .prepare("SELECT COUNT(*) as count FROM enrollments WHERE course_id = ?")
-        .get(courseId) as any
-    )?.count ?? 0;
-
-    const txStats = db
-      .prepare(
-        `SELECT 
-          COALESCE(SUM(amount_cents), 0) as gross_cents,
-          COALESCE(SUM(creator_payout_cents), 0) as net_cents
-        FROM transactions 
-        WHERE course_id = ? AND status = 'COMPLETED'`
-      )
-      .get(courseId) as any;
-
-    const grossCents = txStats?.gross_cents ?? 0;
-    const netCents = txStats?.net_cents ?? Math.round(grossCents * 0.9);
 
     return NextResponse.json({
       success: true,
@@ -114,8 +92,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    initDb();
-    const db = getDb();
     const currentUser = await getCurrentUser(request);
     if (currentUser.role === "SUPER_ADMIN") {
       return NextResponse.json(
@@ -125,9 +101,7 @@ export async function PATCH(
     }
     const { id: courseId } = await params;
 
-    const existingCourse = db
-      .prepare("SELECT * FROM courses WHERE id = ?")
-      .get(courseId) as any;
+    const existingCourse = await dbAdapter.getCourseById(courseId);
     if (!existingCourse) {
       return NextResponse.json(
         { success: false, error: `Course not found: ${courseId}` },
@@ -136,80 +110,18 @@ export async function PATCH(
     }
 
     const body = await request.json().catch(() => ({}));
-    const now = new Date().toISOString();
-
-    const updates: string[] = [];
-    const values: any[] = [];
-
-    if (body.title !== undefined && typeof body.title === "string") {
-      if (body.title.trim().length < 3) {
-        return NextResponse.json(
-          { success: false, error: "Title must be at least 3 characters" },
-          { status: 400 }
-        );
-      }
-      updates.push("title = ?");
-      values.push(body.title.trim());
+    if (body.title !== undefined && typeof body.title === "string" && body.title.trim().length < 3) {
+      return NextResponse.json(
+        { success: false, error: "Title must be at least 3 characters" },
+        { status: 400 }
+      );
     }
 
-    if (body.description !== undefined) {
-      updates.push("description = ?");
-      values.push(String(body.description).trim());
-    }
-
-    if (body.category !== undefined) {
-      let cat = String(body.category).toUpperCase().trim();
-      if (cat === "DEVELOPMENT") cat = "SOFTWARE";
-      updates.push("category = ?");
-      values.push(cat);
-    }
-
-    if (body.price_cents !== undefined) {
-      const pCents = Math.max(0, Math.round(Number(body.price_cents)));
-      updates.push("price_cents = ?");
-      values.push(pCents);
-    } else if (body.price !== undefined) {
-      const pCents = Math.max(0, Math.round(Number(body.price) * 100));
-      updates.push("price_cents = ?");
-      values.push(pCents);
-    }
-
-    if (body.thumbnail_url !== undefined) {
-      updates.push("thumbnail_url = ?");
-      values.push(body.thumbnail_url || null);
-    }
-
-    if (body.is_published !== undefined) {
-      const isPub = body.is_published ? 1 : 0;
-      updates.push("is_published = ?");
-      values.push(isPub);
-    }
-
-    if (body.total_weeks !== undefined) {
-      const tw = Math.max(1, Math.min(52, Number(body.total_weeks) || 1));
-      updates.push("total_weeks = ?");
-      values.push(tw);
-    }
-
-    if (updates.length > 0) {
-      updates.push("updated_at = ?");
-      values.push(now);
-      values.push(courseId);
-
-      const query = `UPDATE courses SET ${updates.join(", ")} WHERE id = ?`;
-      db.prepare(query).run(...values);
-    }
-
-    const updatedCourse = db
-      .prepare("SELECT * FROM courses WHERE id = ?")
-      .get(courseId) as any;
+    const updatedCourse = await dbAdapter.updateCourse(courseId, body);
 
     return NextResponse.json({
       success: true,
-      course: {
-        ...updatedCourse,
-        price_dollars: Number((updatedCourse.price_cents / 100).toFixed(2)),
-      },
+      course: updatedCourse,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -231,8 +143,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    initDb();
-    const db = getDb();
     const currentUser = await getCurrentUser(request);
     if (currentUser.role === "SUPER_ADMIN") {
       return NextResponse.json(
@@ -242,9 +152,7 @@ export async function DELETE(
     }
     const { id: courseId } = await params;
 
-    const existingCourse = db
-      .prepare("SELECT * FROM courses WHERE id = ?")
-      .get(courseId) as any;
+    const existingCourse = await dbAdapter.getCourseById(courseId);
     if (!existingCourse) {
       return NextResponse.json(
         { success: false, error: `Course not found: ${courseId}` },
@@ -252,7 +160,7 @@ export async function DELETE(
       );
     }
 
-    db.prepare("DELETE FROM courses WHERE id = ?").run(courseId);
+    await dbAdapter.deleteCourse(courseId);
 
     return NextResponse.json({
       success: true,

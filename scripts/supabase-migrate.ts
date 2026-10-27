@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export async function runSupabaseMigration(): Promise<{ success: boolean; result?: any; error?: string }> {
-  console.log("🚀 Executing Supabase PostgreSQL Migration via Management API...");
+export async function runSupabaseMigration(migrationFile?: string): Promise<{ success: boolean; result?: any; error?: string }> {
+  console.log("🚀 Executing Supabase Cloud PostgreSQL Migration via Management API...");
 
   let token = process.env.SUPABASE_ACCESS_TOKEN;
   let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ldnvbephtdnignivbgra.supabase.co";
@@ -26,22 +26,20 @@ export async function runSupabaseMigration(): Promise<{ success: boolean; result
     return { success: false, error: err };
   }
 
-  // Extract project ref from URL or fallback
   const refMatch = supabaseUrl.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
   const projectRef = refMatch ? refMatch[1] : "ldnvbephtdnignivbgra";
 
-  const migrationFilePath = path.join(
-    process.cwd(),
-    "supabase",
-    "migrations",
-    "20261026_init_marketplace_schema.sql"
-  );
+  const fileName = migrationFile || process.env.MIGRATION_FILE || "20261027_marketplace_cloud_schema.sql";
+  const migrationFilePath = path.join(process.cwd(), "supabase", "migrations", fileName);
 
   if (!fs.existsSync(migrationFilePath)) {
     const err = `❌ Migration file not found at ${migrationFilePath}`;
     console.error(err);
     return { success: false, error: err };
   }
+
+  console.log(`Applying migration file: ${migrationFilePath}`);
+  console.log(`Target project ref: ${projectRef}`);
 
   const sql = fs.readFileSync(migrationFilePath, "utf-8");
 
@@ -74,7 +72,7 @@ export async function runSupabaseMigration(): Promise<{ success: boolean; result
   }
 }
 
-// Allow direct execution
+// Allow direct CLI execution
 if (process.argv[1] && process.argv[1].endsWith("supabase-migrate.ts")) {
   runSupabaseMigration().then((res) => {
     if (!res.success) {
