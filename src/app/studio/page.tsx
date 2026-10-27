@@ -267,7 +267,7 @@ export default function CreatorStudioPage() {
         {/* Creator Analytics Metrics Grid - 3-Way Financial Split */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {/* Card 1: Total Gross Sales */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F172A] p-5 shadow-xl">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Total Gross Sales</span>
               <DollarSign className="h-4 w-4 text-emerald-400" />
@@ -275,11 +275,11 @@ export default function CreatorStudioPage() {
             <p className="mt-2 text-2xl font-black text-slate-100">
               ${(analytics.total_gross_dollars || 0).toFixed(2)}
             </p>
-            <p className="text-[11px] text-slate-500 mt-0.5">100% Course volume</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">100% Course volume</p>
           </div>
 
           {/* Card 2: 10% Platform Fee */}
-          <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-5 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-rose-500/30 bg-[#0F172A] p-5 shadow-xl">
             <div className="flex items-center justify-between text-xs font-semibold text-rose-400">
               <span>10% Platform Fee</span>
               <DollarSign className="h-4 w-4 text-rose-400" />
@@ -287,11 +287,11 @@ export default function CreatorStudioPage() {
             <p className="mt-2 text-2xl font-black text-rose-300">
               ${(analytics.total_platform_fee_dollars ?? ((analytics.total_gross_dollars || 0) * 0.1)).toFixed(2)}
             </p>
-            <p className="text-[11px] text-rose-500/80 mt-0.5">10% Platform commission</p>
+            <p className="text-[11px] text-rose-400 mt-0.5">10% Platform commission</p>
           </div>
 
           {/* Card 3: 90% Net Creator Revenue */}
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-emerald-500/30 bg-[#0F172A] p-5 shadow-xl">
             <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
               <span>90% Net Revenue</span>
               <Sparkles className="h-4 w-4 text-emerald-400" />
@@ -299,11 +299,11 @@ export default function CreatorStudioPage() {
             <p className="mt-2 text-2xl font-black text-emerald-300">
               ${(analytics.total_net_dollars || 0).toFixed(2)}
             </p>
-            <p className="text-[11px] text-emerald-500/80 mt-0.5">Zero penny leakage split</p>
+            <p className="text-[11px] text-emerald-400 mt-0.5">Zero penny leakage split</p>
           </div>
 
           {/* Card 4: Total Enrolled Students */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F172A] p-5 shadow-xl">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Total Enrolled</span>
               <Users className="h-4 w-4 text-indigo-400" />
@@ -311,11 +311,11 @@ export default function CreatorStudioPage() {
             <p className="mt-2 text-2xl font-black text-slate-100">
               {analytics.total_enrolled_students || 0}
             </p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Unique paying students</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Unique paying students</p>
           </div>
 
           {/* Card 5: Total Courses */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-[#1E293B] bg-[#0F172A] p-5 shadow-xl">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Total Courses</span>
               <Layers className="h-4 w-4 text-teal-400" />
@@ -323,14 +323,14 @@ export default function CreatorStudioPage() {
             <p className="mt-2 text-2xl font-black text-slate-100">
               {analytics.total_courses || courses.length}
             </p>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-400 mt-0.5">
               {courses.filter((c) => c.is_published).length} Published •{" "}
               {courses.filter((c) => !c.is_published).length} Draft
             </p>
           </div>
 
           {/* Card 6: Available Wallet Balance */}
-          <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-indigo-500/30 bg-[#0F172A] p-5 shadow-xl">
             <div className="flex items-center justify-between text-xs font-semibold text-indigo-400">
               <span>Available Wallet</span>
               <Wallet className="h-4 w-4 text-indigo-400" />

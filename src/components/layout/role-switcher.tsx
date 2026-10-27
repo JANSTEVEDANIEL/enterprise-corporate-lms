@@ -60,6 +60,20 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
   const [currentUser, setCurrentUser] = useState<SessionUser | undefined>(initialUser);
   const [balance, setBalance] = useState<number>(walletBalance);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [isResettingWallet, setIsResettingWallet] = useState(false);
+
+  // Sync wallet balance
+  const syncWallet = async () => {
+    try {
+      const res = await fetch("/api/wallet?userId=usr_sophia_chen");
+      const json = await res.json();
+      if (json.success && json.wallet?.balance_dollars !== undefined) {
+        setBalance(json.wallet.balance_dollars);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Poll or sync session on initial load if not set
   useEffect(() => {
@@ -77,7 +91,41 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
     if (!currentUser) {
       syncSession();
     }
+    syncWallet();
+
+    const handleWalletUpdated = (e: any) => {
+      if (e.detail?.balance !== undefined) {
+        setBalance(e.detail.balance);
+      } else {
+        syncWallet();
+      }
+    };
+    window.addEventListener("lms-wallet-updated", handleWalletUpdated);
+    return () => {
+      window.removeEventListener("lms-wallet-updated", handleWalletUpdated);
+    };
   }, [currentUser]);
+
+  const handleResetWallet = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setIsResettingWallet(true);
+      const res = await fetch("/api/wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: "usr_sophia_chen", amount_dollars: 500.0 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBalance(500.0);
+        window.dispatchEvent(new CustomEvent("lms-wallet-updated", { detail: { balance: 500.0 } }));
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsResettingWallet(false);
+    }
+  };
 
   const handleRoleSwitch = async (userId: string, targetPath?: string) => {
     if (isSwitching) return;
@@ -117,7 +165,7 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
   return (
     <aside
       aria-label="Demo Role Switcher"
-      className="sticky top-0 z-50 w-full backdrop-blur-md bg-slate-900/90 dark:bg-slate-950/90 border-b border-slate-700/60 text-slate-100 shadow-md transition-colors"
+      className="sticky top-0 z-50 w-full bg-[#0B101D] border-b border-slate-800 text-slate-100 shadow-md transition-colors"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3">
         {/* Left: Active Persona & Role Info */}
@@ -157,14 +205,27 @@ export function RoleSwitcher({ initialUser, walletBalance = 500.0 }: RoleSwitche
           {/* Student Pre-Funded Wallet Pill */}
           {isStudent && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 rounded-full text-xs font-medium"
+              className="flex items-center gap-2 px-2.5 py-0.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 rounded-full text-xs font-medium"
               title="Simulated pre-funded wallet balance for test purchases"
             >
-              <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Balance:</span>
-              <span className="font-bold text-emerald-200">
-                ${balance.toFixed(2)}
-              </span>
+              <div className="flex items-center gap-1">
+                <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Balance:</span>
+                <span className="font-bold text-emerald-200">
+                  ${balance.toFixed(2)}
+                </span>
+              </div>
+              {balance < 100 && (
+                <button
+                  type="button"
+                  onClick={handleResetWallet}
+                  disabled={isResettingWallet}
+                  className="px-1.5 py-0.2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-sm transition-all"
+                  title="Reset demo wallet back to $500.00"
+                >
+                  {isResettingWallet ? "..." : "+$500"}
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
-import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser, hasPermission } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit";
-import type { Role } from "@/types";
+import { dbAdapter } from "@/lib/supabase/adapter";
 
 export async function GET(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
 
-    // Check manager or admin permissions
     if (!hasPermission(currentUser.role, "MANAGER")) {
       return NextResponse.json(
         { success: false, error: "Forbidden: Privileged role required" },
@@ -20,43 +15,13 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const department = searchParams.get("department");
-    const roleFilter = searchParams.get("role");
+    const department = searchParams.get("department") || undefined;
+    const roleFilter = searchParams.get("role") || undefined;
 
-    let sql = `
-      SELECT 
-        u.*,
-        m.name as manager_name,
-        (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id) as enrollments_count,
-        (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id AND e.status = 'COMPLETED') as completed_count,
-        (SELECT COUNT(*) FROM certificates c WHERE c.user_id = u.id) as certificates_count
-      FROM users u
-      LEFT JOIN users m ON m.id = u.manager_id
-      WHERE 1=1
-    `;
-    const params: any[] = [];
-
-    if (department && department !== "ALL") {
-      sql += " AND u.department = ?";
-      params.push(department);
-    }
-
-    if (roleFilter && roleFilter !== "ALL") {
-      sql += " AND u.role = ?";
-      params.push(roleFilter);
-    }
-
-    sql += " ORDER BY u.role DESC, u.name ASC";
-
-    const users = db.prepare(sql).all(...params);
-
-    // Also get managers list for dropdown selection
-    const managers = db.prepare(`
-      SELECT id, name, email, department, role
-      FROM users
-      WHERE role IN ('MANAGER', 'COMPLIANCE_OFFICER', 'SUPER_ADMIN') AND is_active = 1
-      ORDER BY name ASC
-    `).all();
+    const { users, managers } = await dbAdapter.getAdminUsers({
+      department,
+      role: roleFilter,
+    });
 
     return NextResponse.json({
       success: true,
@@ -75,9 +40,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
 
     if (currentUser.role !== "SUPER_ADMIN") {
       return NextResponse.json(
@@ -96,44 +59,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check email uniqueness
-    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
-    if (existing) {
-      return NextResponse.json(
-        { success: false, error: "A user with this email address already exists" },
-        { status: 409 }
-      );
-    }
-
-    const newUserId = `usr_${randomUUID().substring(0, 12)}`;
-    const now = new Date().toISOString();
-
-    db.prepare(`
-      INSERT INTO users (
-        id, email, name, role, department, job_title, manager_id, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(newUserId, email, name, role, department, jobTitle, managerId || null, now, now);
-
-    recordAuditEvent({
-      actorId: currentUser.id,
-      actorRole: currentUser.role,
-      actorName: currentUser.name,
-      action: "USER_PROVISIONED",
-      targetType: "USER",
-      targetId: newUserId,
-      details: {
-        provisionedUserId: newUserId,
+    let createdUser: any;
+    try {
+      createdUser = await dbAdapter.createAdminUser({
         email,
         name,
         role,
         department,
         jobTitle,
-        managerId: managerId || null,
-        provisionedBy: currentUser.name,
-      },
-    });
+        managerId,
+      });
+    } catch (err: any) {
+      if (err.code === "EMAIL_EXISTS" || err.message?.includes("already exists")) {
+        return NextResponse.json(
+          { success: false, error: "A user with this email address already exists" },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
 
-    const createdUser = db.prepare("SELECT * FROM users WHERE id = ?").get(newUserId);
+    try {
+      recordAuditEvent({
+        actorId: currentUser.id,
+        actorRole: currentUser.role,
+        actorName: currentUser.name,
+        action: "USER_PROVISIONED",
+        targetType: "USER",
+        targetId: createdUser.id,
+        details: {
+          provisionedUserId: createdUser.id,
+          email,
+          name,
+          role,
+          department,
+          jobTitle,
+          managerId: managerId || null,
+          provisionedBy: currentUser.name,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error:", auditErr);
+    }
 
     return NextResponse.json({
       success: true,

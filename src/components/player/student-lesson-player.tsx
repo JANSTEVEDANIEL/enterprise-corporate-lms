@@ -436,7 +436,7 @@ export function StudentLessonPlayer({
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100">
       {/* Top Learning Navigation Bar */}
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-slate-900/90 border-b border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 bg-[#0B101D] border-b border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard"
@@ -528,7 +528,7 @@ export function StudentLessonPlayer({
             />
 
             {/* Lesson Action Header Bar */}
-            <div className="backdrop-blur-xl bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+            <div className="bg-[#0F172A] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -613,7 +613,7 @@ export function StudentLessonPlayer({
           {/* 3-TABBED RESOURCE CONTAINER (Below Persistent Video Player)       */}
           {/* ================================================================ */}
           <div
-            className="backdrop-blur-xl bg-slate-900/60 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-6"
+            className="bg-[#0F172A] border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-lg space-y-6"
             data-testid="resource-tabs-container"
           >
             {/* Tabs Navigation Header */}
@@ -1264,7 +1264,7 @@ export function StudentLessonPlayer({
 
         {/* Right Drawer: Sequential 1 to 7+ Week Curriculum Navigation */}
         <aside
-          className={`lg:w-96 border-l border-slate-800 bg-slate-950/90 backdrop-blur-xl flex flex-col shrink-0 transition-all duration-300 ${
+          className={`lg:w-96 border-l border-slate-800 bg-[#0B101D] flex flex-col shrink-0 transition-all duration-300 ${
             drawerOpen ? "block" : "hidden lg:block"
           }`}
           data-testid="curriculum-drawer"

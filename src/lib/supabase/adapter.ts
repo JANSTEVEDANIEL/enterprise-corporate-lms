@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export function isOfflineMode(): boolean {
   if (process.env.LMS_FORCE_OFFLINE === "true") return true;
+  if (process.env.LMS_FORCE_OFFLINE === "false") return false;
   if (process.env.NODE_ENV === "test") return true;
   const hasUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const hasKey = Boolean(
@@ -44,6 +45,7 @@ export interface UnifiedDbAdapter {
   getCurriculum(courseId: string): Promise<any[]>;
   getLesson(lessonId: string): Promise<any | null>;
   getWallet(userId: string): Promise<any | null>;
+  setWalletBalance(userId: string, balanceCents: number): Promise<any>;
   recordTransaction(tx: any): Promise<any>;
   getTransactionsForUser(userId: string): Promise<any[]>;
   getPayouts(creatorId?: string): Promise<any[]>;
@@ -80,6 +82,61 @@ export interface UnifiedDbAdapter {
     buyerName?: string;
     buyerRole?: string;
   }): Promise<any>;
+
+  // Secondary Admin Endpoints Unification
+  getAdminCourses(): Promise<any[]>;
+  createAdminCourse(input: {
+    title: string;
+    slug?: string;
+    description: string;
+    category?: string;
+    targetRole?: string;
+    isMandatory?: number | boolean;
+    estimatedMinutes?: number;
+    renewalPeriodDays?: number | null;
+    passingScorePct?: number;
+    version?: string;
+    isPublished?: number | boolean;
+    creatorId?: string;
+    modules?: Array<{
+      id?: string;
+      title?: string;
+      description?: string;
+      type?: string;
+      content?: string;
+      estimatedMinutes?: number;
+    }>;
+  }): Promise<any>;
+
+  getAdminUsers(filters?: { department?: string; role?: string }): Promise<{
+    users: any[];
+    managers: any[];
+  }>;
+  createAdminUser(input: {
+    name: string;
+    email: string;
+    role?: string;
+    department: string;
+    jobTitle: string;
+    managerId?: string | null;
+  }): Promise<any>;
+  updateAdminUser(
+    userId: string,
+    updates: {
+      role?: string;
+      department?: string;
+      jobTitle?: string;
+      managerId?: string | null;
+      isActive?: number | boolean;
+    }
+  ): Promise<{ updatedUser: any; previousUser: any }>;
+
+  assignCourse(params: {
+    userId: string;
+    courseId: string;
+    dueDate?: string | null;
+    assignedBy: string;
+  }): Promise<{ enrollment: any; user: any; course: any }>;
 }
 
 export class DbAdapter implements UnifiedDbAdapter {
@@ -471,6 +528,35 @@ export class DbAdapter implements UnifiedDbAdapter {
     }
 
     return null;
+  }
+
+  async setWalletBalance(userId: string, balanceCents: number): Promise<any> {
+    const now = new Date().toISOString();
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      db.prepare(`
+        INSERT INTO wallets (id, user_id, balance, balance_cents, currency, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'USD', ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET 
+          balance = excluded.balance,
+          balance_cents = excluded.balance_cents,
+          updated_at = excluded.updated_at
+      `).run(`wal_${userId}`, userId, balanceCents, balanceCents, now, now);
+      return this.getWallet(userId);
+    }
+
+    const supabase = getClient();
+    if (!supabase) return null;
+    await supabase.from("wallets").upsert({
+      id: `wal_${userId}`,
+      user_id: userId,
+      balance: balanceCents,
+      balance_cents: balanceCents,
+      currency: "USD",
+      updated_at: now,
+    });
+    return this.getWallet(userId);
   }
 
   async recordTransaction(tx: any): Promise<any> {
@@ -2131,76 +2217,201 @@ export class DbAdapter implements UnifiedDbAdapter {
       const supabase = getClient();
       if (!supabase) throw new Error("SUPABASE_NOT_INITIALIZED");
 
-      // 1. Insert transaction
-      await supabase.from("transactions").insert({
-        id: transactionId,
-        course_id: course.id,
-        student_id: studentId,
-        creator_id: creatorId,
-        amount: split.amountCents,
-        amount_cents: split.amountCents,
-        platform_fee: split.platformFeeCents,
-        platform_fee_cents: split.platformFeeCents,
-        creator_earnings: split.creatorPayoutCents,
-        creator_payout_cents: split.creatorPayoutCents,
-        currency: "USD",
-        status: "COMPLETED",
-        created_at: now,
-      });
+      const { data: adminUser } = await supabase.from("users").select("id").eq("role", "SUPER_ADMIN").limit(1).maybeSingle();
+      const superAdminId = adminUser?.id || "usr_david_kim";
 
-      // 2. Insert enrollment
-      await supabase.from("enrollments").insert({
-        id: enrollmentId,
-        user_id: studentId,
-        course_id: course.id,
-        status: "ACTIVE",
-        progress_pct: 0,
-        assigned_at: now,
-        created_at: now,
-        updated_at: now,
-      });
-
-      // 3. Debit student wallet
-      const newBalanceCents = balanceCents - priceCents;
-      await supabase.from("wallets").update({
-        balance: newBalanceCents,
-        balance_cents: newBalanceCents,
-        updated_at: now,
-      }).eq("user_id", studentId);
-
-      // 4. Credit creator wallet
-      const creatorWallet = await this.getWallet(creatorId);
-      if (creatorWallet) {
-        const updated = creatorWallet.balance_cents + split.creatorPayoutCents;
-        await supabase.from("wallets").update({
-          balance: updated,
-          balance_cents: updated,
-          updated_at: now,
-        }).eq("user_id", creatorId);
-      } else {
-        await supabase.from("wallets").insert({
-          id: `wal_${creatorId}`,
-          user_id: creatorId,
-          balance: split.creatorPayoutCents,
-          balance_cents: split.creatorPayoutCents,
-          currency: "USD",
-          created_at: now,
-          updated_at: now,
+      // ---------------------------------------------------------------------
+      // TIER 1: Attempt Atomic Stored Procedure via Supabase RPC
+      // ---------------------------------------------------------------------
+      let rpcSucceeded = false;
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc("execute_checkout", {
+          p_student_id: studentId,
+          p_course_id: course.id,
+          p_transaction_id: transactionId,
+          p_enrollment_id: enrollmentId,
+          p_creator_id: creatorId,
+          p_super_admin_id: superAdminId,
+          p_price_cents: priceCents,
+          p_platform_fee_cents: split.platformFeeCents,
+          p_creator_payout_cents: split.creatorPayoutCents,
         });
+
+        if (!rpcError) {
+          rpcSucceeded = true;
+        } else {
+          // If RPC failed due to business logic, throw immediately
+          if (rpcError.message?.includes("INSUFFICIENT_FUNDS")) {
+            throw new Error("INSUFFICIENT_FUNDS");
+          }
+          if (rpcError.message?.includes("ALREADY_ENROLLED")) {
+            throw new Error("ALREADY_ENROLLED");
+          }
+          // If RPC is missing (PGRST202) or other error, fallback to Tier 2 Saga
+          console.warn("RPC execute_checkout unavailable, falling back to compensating saga:", rpcError.message);
+        }
+      } catch (err: any) {
+        if (err.message === "INSUFFICIENT_FUNDS" || err.message === "ALREADY_ENROLLED") {
+          throw err;
+        }
+        // Fallback to Tier 2
       }
 
-      // 5. Credit super admin wallet
-      if (split.platformFeeCents > 0) {
-        const { data: adminUser } = await supabase.from("users").select("id").eq("role", "SUPER_ADMIN").limit(1).maybeSingle();
-        const superAdminId = adminUser?.id || "usr_david_kim";
-        const adminWallet = await this.getWallet(superAdminId);
-        if (adminWallet) {
-          const updated = adminWallet.balance_cents + split.platformFeeCents;
-          await supabase.from("wallets").update({
-            balance: updated,
-            balance_cents: updated,
+      // ---------------------------------------------------------------------
+      // TIER 2: Compensating Transaction (Saga) Engine with Reverse Rollback
+      // ---------------------------------------------------------------------
+      if (!rpcSucceeded) {
+        const compensations: Array<() => Promise<void>> = [];
+
+        try {
+          // STEP 1: Debit Student Wallet
+          const newBalanceCents = balanceCents - priceCents;
+          const { error: debitErr } = await supabase.from("wallets").update({
+            balance: newBalanceCents,
+            balance_cents: newBalanceCents,
             updated_at: now,
-          }).eq("user_id", superAdminId);
+          }).eq("user_id", studentId);
+
+          if (debitErr) {
+            throw new Error(`WALLET_DEBIT_FAILED: ${debitErr.message}`);
+          }
+
+          // Register Compensation: Refund Student
+          compensations.push(async () => {
+            const currentW = await this.getWallet(studentId);
+            const refundBal = (currentW?.balance_cents ?? newBalanceCents) + priceCents;
+            await supabase.from("wallets").update({
+              balance: refundBal,
+              balance_cents: refundBal,
+              updated_at: new Date().toISOString(),
+            }).eq("user_id", studentId);
+          });
+
+          // STEP 2: Credit Creator Wallet
+          const creatorWallet = await this.getWallet(creatorId);
+          if (creatorWallet) {
+            const updated = creatorWallet.balance_cents + split.creatorPayoutCents;
+            const { error: creditCreatorErr } = await supabase.from("wallets").update({
+              balance: updated,
+              balance_cents: updated,
+              updated_at: now,
+            }).eq("user_id", creatorId);
+
+            if (creditCreatorErr) {
+              throw new Error(`CREATOR_CREDIT_FAILED: ${creditCreatorErr.message}`);
+            }
+
+            // Compensation: Revert Creator Credit
+            compensations.push(async () => {
+              const cur = await this.getWallet(creatorId);
+              if (cur) {
+                const reverted = Math.max(0, cur.balance_cents - split.creatorPayoutCents);
+                await supabase.from("wallets").update({
+                  balance: reverted,
+                  balance_cents: reverted,
+                  updated_at: new Date().toISOString(),
+                }).eq("user_id", creatorId);
+              }
+            });
+          } else {
+            const { error: insertCreatorErr } = await supabase.from("wallets").insert({
+              id: `wal_${creatorId}`,
+              user_id: creatorId,
+              balance: split.creatorPayoutCents,
+              balance_cents: split.creatorPayoutCents,
+              currency: "USD",
+              created_at: now,
+              updated_at: now,
+            });
+
+            if (insertCreatorErr) {
+              throw new Error(`CREATOR_WALLET_INIT_FAILED: ${insertCreatorErr.message}`);
+            }
+
+            compensations.push(async () => {
+              await supabase.from("wallets").delete().eq("user_id", creatorId);
+            });
+          }
+
+          // STEP 3: Credit Super Admin Wallet (if fee > 0)
+          if (split.platformFeeCents > 0) {
+            const adminWallet = await this.getWallet(superAdminId);
+            if (adminWallet) {
+              const updated = adminWallet.balance_cents + split.platformFeeCents;
+              const { error: creditAdminErr } = await supabase.from("wallets").update({
+                balance: updated,
+                balance_cents: updated,
+                updated_at: now,
+              }).eq("user_id", superAdminId);
+
+              if (creditAdminErr) {
+                throw new Error(`ADMIN_CREDIT_FAILED: ${creditAdminErr.message}`);
+              }
+
+              compensations.push(async () => {
+                const cur = await this.getWallet(superAdminId);
+                if (cur) {
+                  const reverted = Math.max(0, cur.balance_cents - split.platformFeeCents);
+                  await supabase.from("wallets").update({
+                    balance: reverted,
+                    balance_cents: reverted,
+                    updated_at: new Date().toISOString(),
+                  }).eq("user_id", superAdminId);
+                }
+              });
+            }
+          }
+
+          // STEP 4: Insert Active Enrollment
+          const { error: enrollErr } = await supabase.from("enrollments").insert({
+            id: enrollmentId,
+            user_id: studentId,
+            course_id: course.id,
+            status: "ACTIVE",
+            progress_pct: 0,
+            assigned_at: now,
+            created_at: now,
+            updated_at: now,
+          });
+
+          if (enrollErr) {
+            throw new Error(`ENROLLMENT_FAILED: ${enrollErr.message}`);
+          }
+
+          compensations.push(async () => {
+            await supabase.from("enrollments").delete().eq("id", enrollmentId);
+          });
+
+          // STEP 5: Record Completed Transaction
+          const { error: txErr } = await supabase.from("transactions").insert({
+            id: transactionId,
+            course_id: course.id,
+            student_id: studentId,
+            creator_id: creatorId,
+            amount: split.amountCents,
+            amount_cents: split.amountCents,
+            platform_fee: split.platformFeeCents,
+            platform_fee_cents: split.platformFeeCents,
+            creator_earnings: split.creatorPayoutCents,
+            creator_payout_cents: split.creatorPayoutCents,
+            currency: "USD",
+            status: "COMPLETED",
+            created_at: now,
+          });
+
+          if (txErr) {
+            throw new Error(`TRANSACTION_FAILED: ${txErr.message}`);
+          }
+        } catch (mutationErr: any) {
+          console.error("Online checkout step failed, executing reverse compensating rollback:", mutationErr);
+          for (let i = compensations.length - 1; i >= 0; i--) {
+            try {
+              await compensations[i]();
+            } catch (compErr) {
+              console.error("Critical: Compensating rollback failure:", compErr);
+            }
+          }
+          throw new Error(`CHECKOUT_FAILED: ${mutationErr.message}`);
         }
       }
     }
@@ -2256,6 +2467,559 @@ export class DbAdapter implements UnifiedDbAdapter {
         price_dollars: Number((priceCents / 100).toFixed(2)),
       },
     };
+  }
+
+  // =========================================================================
+  // ADMIN UNIFICATION METHODS
+  // =========================================================================
+
+  async getAdminCourses(): Promise<any[]> {
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      const rows = db.prepare(`
+        SELECT 
+          c.*,
+          COALESCE(u.name, 'Dr. Aris Thorne') as creator_name,
+          CASE 
+            WHEN (SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id) > 0 
+              THEN (SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id)
+            ELSE (SELECT COUNT(*) FROM modules m WHERE m.course_id = c.id)
+          END as modules_count,
+          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) as enrollments_count,
+          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id AND e.status = 'COMPLETED') as completed_count
+        FROM courses c
+        LEFT JOIN users u ON c.creator_id = u.id
+        ORDER BY c.created_at DESC
+      `).all() as any[];
+
+      return rows.map((c) => ({
+        ...c,
+        price_dollars: c.price_cents ? Number((c.price_cents / 100).toFixed(2)) : (c.price || 0),
+      }));
+    }
+
+    const supabase = getClient();
+    if (!supabase) return [];
+
+    const { data: courses, error } = await supabase
+      .from("courses")
+      .select(`
+        *,
+        creator:users(name),
+        enrollments(id, status),
+        lessons(id)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error || !courses) {
+      console.error("Supabase getAdminCourses error:", error);
+      return [];
+    }
+
+    return courses.map((c: any) => {
+      const enrollments = c.enrollments || [];
+      const completedCount = enrollments.filter((e: any) => e.status === "COMPLETED").length;
+      const lessonsCount = (c.lessons || []).length;
+      return {
+        ...c,
+        creator_name: c.creator?.name || "Dr. Aris Thorne",
+        modules_count: lessonsCount > 0 ? lessonsCount : (c.total_weeks || 0),
+        lessons_count: lessonsCount,
+        enrollments_count: enrollments.length,
+        completed_count: completedCount,
+        price_dollars: c.price_cents ? Number((c.price_cents / 100).toFixed(2)) : 0,
+      };
+    });
+  }
+
+  async createAdminCourse(input: {
+    title: string;
+    slug?: string;
+    description: string;
+    category?: string;
+    targetRole?: string;
+    isMandatory?: number | boolean;
+    estimatedMinutes?: number;
+    renewalPeriodDays?: number | null;
+    passingScorePct?: number;
+    version?: string;
+    isPublished?: number | boolean;
+    creatorId?: string;
+    modules?: Array<any>;
+  }): Promise<any> {
+    const courseSlug = input.slug || slugify(input.title);
+    const courseId = `crs_${randomUUID().substring(0, 12)}`;
+    const now = new Date().toISOString();
+    const category = input.category || "SOFTWARE";
+
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      const existing = db.prepare("SELECT id FROM courses WHERE slug = ?").get(courseSlug);
+      if (existing) {
+        throw new Error("A course with this slug already exists");
+      }
+
+      db.prepare(`
+        INSERT INTO courses (
+          id, slug, title, description, category, target_role, is_mandatory,
+          estimated_minutes, renewal_period_days, passing_score_pct, version,
+          is_published, creator_id, price_cents, total_weeks, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)
+      `).run(
+        courseId,
+        courseSlug,
+        input.title,
+        input.description,
+        category,
+        input.targetRole || "ALL",
+        input.isMandatory ? 1 : 0,
+        input.estimatedMinutes || 45,
+        input.renewalPeriodDays || null,
+        input.passingScorePct || 80,
+        input.version || "1.0.0",
+        input.isPublished !== undefined ? (input.isPublished ? 1 : 0) : 1,
+        input.creatorId || "usr_david_kim",
+        now,
+        now
+      );
+
+      // Support legacy modules table + weeks/lessons parity
+      if (Array.isArray(input.modules) && input.modules.length > 0) {
+        const insertModStmt = db.prepare(`
+          INSERT INTO modules (
+            id, course_id, title, description, order_index, type, content,
+            estimated_minutes, version, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        input.modules.forEach((mod: any, idx: number) => {
+          const modId = mod.id || `mod_${randomUUID().substring(0, 10)}`;
+          insertModStmt.run(
+            modId,
+            courseId,
+            mod.title || `Module ${idx + 1}`,
+            mod.description || "",
+            idx,
+            mod.type || "RICH_MARKDOWN",
+            mod.content || "# Course Content",
+            mod.estimatedMinutes || 15,
+            input.version || "1.0.0",
+            now,
+            now
+          );
+        });
+
+        // Insert week 1 and lessons for curriculum player parity
+        const weekId = `wk_${randomUUID().substring(0, 10)}`;
+        db.prepare(`
+          INSERT INTO weeks (id, course_id, week_number, title, description, created_at, updated_at)
+          VALUES (?, ?, 1, 'Week 1: Core Fundamentals', 'Initial coursework modules', ?, ?)
+        `).run(weekId, courseId, now, now);
+
+        input.modules.forEach((mod: any, idx: number) => {
+          db.prepare(`
+            INSERT INTO lessons (id, week_id, course_id, title, order_index, duration_seconds, video_url, supplementary_files, is_preview, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, NULL, '[]', ?, ?, ?)
+          `).run(`les_${randomUUID().substring(0, 10)}`, weekId, courseId, mod.title || `Lesson ${idx + 1}`, idx + 1, (mod.estimatedMinutes || 15) * 60, idx === 0 ? 1 : 0, now, now);
+        });
+      }
+
+      return db.prepare("SELECT * FROM courses WHERE id = ?").get(courseId);
+    }
+
+    const supabase = getClient();
+    if (!supabase) throw new Error("SUPABASE_NOT_INITIALIZED");
+
+    const { data: existing } = await supabase.from("courses").select("id").eq("slug", courseSlug).maybeSingle();
+    if (existing) {
+      throw new Error("A course with this slug already exists");
+    }
+
+    const { data: course, error } = await supabase.from("courses").insert({
+      id: courseId,
+      slug: courseSlug,
+      title: input.title,
+      description: input.description,
+      category,
+      target_role: input.targetRole || "ALL",
+      is_mandatory: Boolean(input.isMandatory),
+      estimated_minutes: input.estimatedMinutes || 45,
+      renewal_period_days: input.renewalPeriodDays || null,
+      passing_score_pct: input.passingScorePct || 80,
+      version: input.version || "1.0.0",
+      is_published: input.isPublished !== undefined ? Boolean(input.isPublished) : true,
+      creator_id: input.creatorId || "usr_david_kim",
+      price_cents: 0,
+      total_weeks: 1,
+      created_at: now,
+      updated_at: now,
+    }).select().single();
+
+    if (error) {
+      throw new Error(`Failed to create course in cloud: ${error.message}`);
+    }
+
+    // Provision week 1 and lessons in Supabase
+    if (Array.isArray(input.modules) && input.modules.length > 0) {
+      const weekId = `wk_${randomUUID().substring(0, 10)}`;
+      await supabase.from("weeks").insert({
+        id: weekId,
+        course_id: courseId,
+        week_number: 1,
+        title: "Week 1: Core Fundamentals",
+        description: "Initial coursework modules",
+        created_at: now,
+        updated_at: now,
+      });
+
+      for (let idx = 0; idx < input.modules.length; idx++) {
+        const mod = input.modules[idx];
+        await supabase.from("lessons").insert({
+          id: `les_${randomUUID().substring(0, 10)}`,
+          week_id: weekId,
+          course_id: courseId,
+          title: mod.title || `Lesson ${idx + 1}`,
+          order_index: idx + 1,
+          duration_seconds: (mod.estimatedMinutes || 15) * 60,
+          video_url: null,
+          supplementary_files: [],
+          is_preview: idx === 0,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+    }
+
+    return course;
+  }
+
+  async getAdminUsers(filters?: { department?: string; role?: string }): Promise<{ users: any[]; managers: any[] }> {
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      let sql = `
+        SELECT 
+          u.*,
+          m.name as manager_name,
+          (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id) as enrollments_count,
+          (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id AND e.status = 'COMPLETED') as completed_count,
+          (SELECT COUNT(*) FROM certificates c WHERE c.user_id = u.id) as certificates_count
+        FROM users u
+        LEFT JOIN users m ON m.id = u.manager_id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      if (filters?.department && filters.department !== "ALL") {
+        sql += " AND u.department = ?";
+        params.push(filters.department);
+      }
+      if (filters?.role && filters.role !== "ALL") {
+        sql += " AND u.role = ?";
+        params.push(filters.role);
+      }
+      sql += " ORDER BY u.role DESC, u.name ASC";
+      const users = db.prepare(sql).all(...params) as any[];
+
+      const managers = db.prepare(`
+        SELECT id, name, email, department, role
+        FROM users
+        WHERE role IN ('MANAGER', 'COMPLIANCE_OFFICER', 'SUPER_ADMIN') AND is_active = 1
+        ORDER BY name ASC
+      `).all() as any[];
+
+      return { users, managers };
+    }
+
+    const supabase = getClient();
+    if (!supabase) return { users: [], managers: [] };
+
+    let query = supabase
+      .from("users")
+      .select(`
+        *,
+        enrollments(id, status),
+        certificates(id)
+      `)
+      .order("role", { ascending: false })
+      .order("name", { ascending: true });
+
+    if (filters?.department && filters.department !== "ALL") {
+      query = query.eq("department", filters.department);
+    }
+    if (filters?.role && filters.role !== "ALL") {
+      query = query.eq("role", filters.role);
+    }
+
+    const [{ data: usersData, error: userErr }, { data: managersData }] = await Promise.all([
+      query,
+      supabase
+        .from("users")
+        .select("id, name, email, department, role")
+        .in("role", ["MANAGER", "COMPLIANCE_OFFICER", "SUPER_ADMIN"])
+        .eq("is_active", true)
+        .order("name", { ascending: true }),
+    ]);
+
+    if (userErr || !usersData) {
+      console.error("Supabase getAdminUsers error:", userErr);
+      return { users: [], managers: managersData || [] };
+    }
+
+    const userMap = new Map(usersData.map((u: any) => [u.id, u.name]));
+
+    const users = usersData.map((u: any) => {
+      const enrollments = u.enrollments || [];
+      const completedCount = enrollments.filter((e: any) => e.status === "COMPLETED").length;
+      return {
+        ...u,
+        manager_name: u.manager_id ? userMap.get(u.manager_id) || null : null,
+        enrollments_count: enrollments.length,
+        completed_count: completedCount,
+        certificates_count: (u.certificates || []).length,
+      };
+    });
+
+    return { users, managers: managersData || [] };
+  }
+
+  async createAdminUser(input: {
+    name: string;
+    email: string;
+    role?: string;
+    department: string;
+    jobTitle: string;
+    managerId?: string | null;
+  }): Promise<any> {
+    const newUserId = `usr_${randomUUID().substring(0, 12)}`;
+    const now = new Date().toISOString();
+    const role = input.role || "EMPLOYEE";
+
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(input.email);
+      if (existing) {
+        const err: any = new Error("A user with this email address already exists");
+        err.code = "EMAIL_EXISTS";
+        throw err;
+      }
+
+      db.prepare(`
+        INSERT INTO users (
+          id, email, name, role, department, job_title, manager_id, is_active, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(newUserId, input.email, input.name, role, input.department, input.jobTitle, input.managerId || null, now, now);
+
+      db.prepare(`
+        INSERT INTO wallets (id, user_id, balance, balance_cents, currency, created_at, updated_at)
+        VALUES (?, ?, 50000, 50000, 'USD', ?, ?)
+      `).run(`wal_${newUserId}`, newUserId, now, now);
+
+      return db.prepare("SELECT * FROM users WHERE id = ?").get(newUserId);
+    }
+
+    const supabase = getClient();
+    if (!supabase) throw new Error("SUPABASE_NOT_INITIALIZED");
+
+    const { data: existing } = await supabase.from("users").select("id").eq("email", input.email).maybeSingle();
+    if (existing) {
+      const err: any = new Error("A user with this email address already exists");
+      err.code = "EMAIL_EXISTS";
+      throw err;
+    }
+
+    const { data: createdUser, error } = await supabase.from("users").insert({
+      id: newUserId,
+      email: input.email,
+      name: input.name,
+      role,
+      department: input.department,
+      job_title: input.jobTitle,
+      manager_id: input.managerId || null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    }).select().single();
+
+    if (error) {
+      throw new Error(`Failed to create user in cloud: ${error.message}`);
+    }
+
+    // Initialize user wallet in Supabase
+    await supabase.from("wallets").insert({
+      id: `wal_${newUserId}`,
+      user_id: newUserId,
+      balance: 50000,
+      balance_cents: 50000,
+      currency: "USD",
+      created_at: now,
+      updated_at: now,
+    });
+
+    return createdUser;
+  }
+
+  async updateAdminUser(
+    userId: string,
+    updates: {
+      role?: string;
+      department?: string;
+      jobTitle?: string;
+      managerId?: string | null;
+      isActive?: number | boolean;
+    }
+  ): Promise<{ updatedUser: any; previousUser: any }> {
+    const now = new Date().toISOString();
+
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      const existingUser = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
+      if (!existingUser) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      const newRole = updates.role !== undefined ? updates.role : existingUser.role;
+      const newDepartment = updates.department !== undefined ? updates.department : existingUser.department;
+      const newJobTitle = updates.jobTitle !== undefined ? updates.jobTitle : existingUser.job_title;
+      const newManagerId = updates.managerId !== undefined ? updates.managerId : existingUser.manager_id;
+      const newIsActive = updates.isActive !== undefined ? (updates.isActive ? 1 : 0) : existingUser.is_active;
+
+      db.prepare(`
+        UPDATE users
+        SET role = ?, department = ?, job_title = ?, manager_id = ?, is_active = ?, updated_at = ?
+        WHERE id = ?
+      `).run(newRole, newDepartment, newJobTitle, newManagerId, newIsActive, now, userId);
+
+      const updatedUser = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+      return { updatedUser, previousUser: existingUser };
+    }
+
+    const supabase = getClient();
+    if (!supabase) throw new Error("SUPABASE_NOT_INITIALIZED");
+
+    const { data: existingUser } = await supabase.from("users").select("*").eq("id", userId).maybeSingle();
+    if (!existingUser) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    const updatePayload: any = { updated_at: now };
+    if (updates.role !== undefined) updatePayload.role = updates.role;
+    if (updates.department !== undefined) updatePayload.department = updates.department;
+    if (updates.jobTitle !== undefined) updatePayload.job_title = updates.jobTitle;
+    if (updates.managerId !== undefined) updatePayload.manager_id = updates.managerId;
+    if (updates.isActive !== undefined) updatePayload.is_active = Boolean(updates.isActive);
+
+    const { data: updatedUser, error } = await supabase
+      .from("users")
+      .update(updatePayload)
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update user in cloud: ${error.message}`);
+    }
+
+    return { updatedUser, previousUser: existingUser };
+  }
+
+  async assignCourse(params: {
+    userId: string;
+    courseId: string;
+    dueDate?: string | null;
+    assignedBy: string;
+  }): Promise<{ enrollment: any; user: any; course: any }> {
+    const { userId, courseId, dueDate, assignedBy } = params;
+    const now = new Date().toISOString();
+    let calculatedDueDate = dueDate;
+    if (!calculatedDueDate) {
+      calculatedDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    if (this.isOffline) {
+      initDb();
+      const db = getDb();
+      const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
+      if (!user) throw new Error("USER_NOT_FOUND");
+
+      const course = db.prepare("SELECT * FROM courses WHERE id = ?").get(courseId) as any;
+      if (!course) throw new Error("COURSE_NOT_FOUND");
+
+      const existing = db.prepare("SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?").get(userId, courseId) as any;
+
+      let enrollmentId: string;
+      if (existing) {
+        enrollmentId = existing.id;
+        db.prepare(`
+          UPDATE enrollments
+          SET due_date = ?, assigned_by = ?, updated_at = ?
+          WHERE id = ?
+        `).run(calculatedDueDate, assignedBy, now, enrollmentId);
+      } else {
+        enrollmentId = `enr_${randomUUID().substring(0, 12)}`;
+        db.prepare(`
+          INSERT INTO enrollments (
+            id, user_id, course_id, status, progress_pct, assigned_by, assigned_at, due_date, created_at, updated_at
+          ) VALUES (?, ?, ?, 'NOT_STARTED', 0, ?, ?, ?, ?, ?)
+        `).run(enrollmentId, userId, courseId, assignedBy, now, calculatedDueDate, now, now);
+      }
+
+      const enrollment = db.prepare("SELECT * FROM enrollments WHERE id = ?").get(enrollmentId);
+      return { enrollment, user, course };
+    }
+
+    const supabase = getClient();
+    if (!supabase) throw new Error("SUPABASE_NOT_INITIALIZED");
+
+    const [{ data: user }, { data: course }, { data: existing }] = await Promise.all([
+      supabase.from("users").select("*").eq("id", userId).maybeSingle(),
+      supabase.from("courses").select("*").eq("id", courseId).maybeSingle(),
+      supabase.from("enrollments").select("*").eq("user_id", userId).eq("course_id", courseId).maybeSingle(),
+    ]);
+
+    if (!user) throw new Error("USER_NOT_FOUND");
+    if (!course) throw new Error("COURSE_NOT_FOUND");
+
+    let enrollment: any;
+    if (existing) {
+      const { data: updated, error } = await supabase
+        .from("enrollments")
+        .update({
+          due_date: calculatedDueDate,
+          assigned_by: assignedBy,
+          updated_at: now,
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (error) throw new Error(`Failed to update enrollment: ${error.message}`);
+      enrollment = updated;
+    } else {
+      const enrollmentId = `enr_${randomUUID().substring(0, 12)}`;
+      const { data: inserted, error } = await supabase
+        .from("enrollments")
+        .insert({
+          id: enrollmentId,
+          user_id: userId,
+          course_id: courseId,
+          status: "NOT_STARTED",
+          progress_pct: 0,
+          assigned_by: assignedBy,
+          assigned_at: now,
+          due_date: calculatedDueDate,
+          created_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single();
+      if (error) throw new Error(`Failed to insert enrollment: ${error.message}`);
+      enrollment = inserted;
+    }
+
+    return { enrollment, user, course };
   }
 }
 

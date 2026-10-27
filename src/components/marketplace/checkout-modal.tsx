@@ -139,8 +139,8 @@ export function CheckoutModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg backdrop-blur-2xl bg-slate-900 border border-slate-700/80 rounded-3xl p-6 sm:p-8 text-white shadow-2xl overflow-hidden space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#0F172A] border border-slate-700/80 rounded-3xl p-6 sm:p-8 text-white shadow-2xl overflow-hidden space-y-6">
         {/* Glow decoration */}
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
 

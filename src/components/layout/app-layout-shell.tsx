@@ -31,11 +31,12 @@ export function AppLayoutShell({ children, currentUser }: AppLayoutShellProps) {
 
   // Portal routes (/dashboard, /studio, /admin, etc.) render contextual sidebar layout
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex min-h-[calc(100vh-8rem)]">
       <Sidebar currentUser={currentUser} />
-      <main className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50 p-6 md:p-8">
+      <main className="flex-1 bg-[#090D16] p-6 md:p-8">
         <div className="max-w-7xl mx-auto">{children}</div>
       </main>
     </div>
   );
 }
+

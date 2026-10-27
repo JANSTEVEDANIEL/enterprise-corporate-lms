@@ -155,7 +155,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Super Admin Operator Header */}
-      <section className="backdrop-blur-xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-rose-950/80 border border-slate-700/60 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-wrap items-center justify-between gap-6">
+      <section className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-rose-600/20">
             DK
@@ -176,7 +176,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Creator Content Privacy Shield Status */}
-        <div className="backdrop-blur-md bg-slate-800/80 border border-rose-500/40 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
+        <div className="bg-[#090D16] border border-rose-500/40 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
           <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
             <Lock className="w-5 h-5" />
           </div>
@@ -195,56 +195,56 @@ export default function AdminDashboardPage() {
       {/* High-Level Platform Economics Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Total Marketplace GMV */}
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Total Marketplace GMV</span>
-            <TrendingUp className="w-4 h-4 text-brand-500" />
+            <TrendingUp className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
             ${stats.gmv_dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-500">Gross transaction volume processed</div>
+          <div className="text-[11px] text-slate-400">Gross transaction volume processed</div>
         </div>
 
         {/* 2. Retained 10% Platform Commission */}
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Platform Fee Earnings (10%)</span>
-            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400">
             +${stats.platform_fee_dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-500">Retained 10% platform commission cut</div>
+          <div className="text-[11px] text-slate-400">Retained 10% platform commission cut</div>
         </div>
 
         {/* 3. Total Completed Transactions Count */}
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Completed Transactions</span>
-            <Receipt className="w-4 h-4 text-indigo-500" />
+            <Receipt className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
             {stats.completed_transactions}
           </div>
-          <div className="text-[11px] text-slate-500">Successful student purchases</div>
+          <div className="text-[11px] text-slate-400">Successful student purchases</div>
         </div>
 
         {/* 4. Total Creator Payouts Processed */}
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Creator Payouts Processed</span>
-            <CreditCard className="w-4 h-4 text-amber-500" />
+            <CreditCard className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
             ${stats.payouts_processed_dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-500">{stats.payouts_processed_count} disbursements processed</div>
+          <div className="text-[11px] text-slate-400">{stats.payouts_processed_count} disbursements processed</div>
         </div>
       </div>
 
       {/* Feature 16: Pending Creator Payouts Console */}
-      <section className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
+      <section className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">

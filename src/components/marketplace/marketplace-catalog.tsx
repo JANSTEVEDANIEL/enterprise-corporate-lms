@@ -150,40 +150,43 @@ export function MarketplaceCatalog({ initialCourses, currentUser }: MarketplaceC
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Hero Banner */}
-      <section className="relative overflow-hidden rounded-3xl backdrop-blur-xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-brand-950/70 border border-slate-700/60 p-8 sm:p-12 text-white shadow-2xl">
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-400/30 text-xs font-semibold text-brand-300">
-            <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-            <span>Public EdTech Marketplace Catalog</span>
+      {/* Executive Hero Banner */}
+      <section className="relative overflow-hidden rounded-3xl bg-[#0F172A] border border-[#1E293B] p-8 sm:p-12 text-white shadow-2xl">
+        <div className="relative z-10 max-w-4xl space-y-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-xs font-semibold text-indigo-400">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Executive EdTech Course Marketplace</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Level Up Your Engineering Career with Deep-Dive Weekly Cohorts
+            Master Advanced Systems Engineering with Intensive Cohorts
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-            Multi-week structured curriculums (1 to 7+ weeks) taught by leading domain creators.
-            Video lectures, downloadable architectures, interactive quizzes, and verified certificates.
+            Multi-week structured curriculums (1 to 7+ weeks) led by verified domain architects.
+            Master full-stack distributed systems, AI agent swarms, zero-trust cloud security, and UI design systems.
           </p>
 
-          {/* Quick Stats Pill */}
-          <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Zero-Barrier Public Browsing</span>
+          {/* Key Value Metrics Grid */}
+          <div className="pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="flex flex-col p-3 rounded-xl bg-[#090D16] border border-[#1E293B]">
+              <span className="text-lg font-bold text-white">7 Cohorts</span>
+              <span className="text-[11px] text-slate-400 mt-0.5">1-7+ Week Tracks</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 backdrop-blur-md">
-              <span className="font-semibold text-white">100% Creator IP Protected</span>
+            <div className="flex flex-col p-3 rounded-xl bg-[#090D16] border border-[#1E293B]">
+              <span className="text-lg font-bold text-emerald-400">10 / 90 Split</span>
+              <span className="text-[11px] text-slate-400 mt-0.5">Instant Creator Payout</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 backdrop-blur-md">
-              <span className="font-semibold text-white">$500.00 Pre-Funded Demo Wallet</span>
+            <div className="flex flex-col p-3 rounded-xl bg-[#090D16] border border-[#1E293B]">
+              <span className="text-lg font-bold text-indigo-400">100% Shield</span>
+              <span className="text-[11px] text-slate-400 mt-0.5">Creator IP Protection</span>
+            </div>
+            <div className="flex flex-col p-3 rounded-xl bg-[#090D16] border border-[#1E293B]">
+              <span className="text-lg font-bold text-amber-400">$500.00 USD</span>
+              <span className="text-[11px] text-slate-400 mt-0.5">Pre-Funded Wallet</span>
             </div>
           </div>
         </div>
-
-        {/* Decorative background glow */}
-        <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-brand-600/15 rounded-full blur-3xl pointer-events-none" />
       </section>
 
       {/* Catalog Filters Bar */}

@@ -56,7 +56,7 @@ export function Navbar({ currentUser }: NavbarProps) {
   ];
 
   return (
-    <nav className="w-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 sticky top-10 z-40 transition-colors">
+    <nav className="w-full bg-[#090D16] border-b border-slate-800/80 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Left: Brand Identity */}
@@ -67,14 +67,14 @@ export function Navbar({ currentUser }: NavbarProps) {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5 leading-none">
-                  <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                  <span className="text-sm font-bold tracking-tight text-white">
                     EdTech Core
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800">
+                  <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-brand-950/60 text-brand-400 border border-brand-800">
                     MARKETPLACE
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                <span className="text-[10px] text-slate-400 leading-tight">
                   Creators • Students • Super Admin
                 </span>
               </div>
@@ -92,8 +92,8 @@ export function Navbar({ currentUser }: NavbarProps) {
                     href={link.href}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       isActive
-                        ? "bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-brand-300 font-semibold shadow-sm"
-                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                        ? "bg-[#0F172A] text-brand-300 font-semibold border border-brand-500/30 shadow-sm"
+                        : "text-slate-300 hover:text-white hover:bg-slate-800/60"
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -113,7 +113,7 @@ export function Navbar({ currentUser }: NavbarProps) {
           <div className="flex items-center gap-2">
             <Link
               href="/auth/login"
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-md transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white rounded-md transition-colors"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sign In</span>
@@ -131,7 +131,7 @@ export function Navbar({ currentUser }: NavbarProps) {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              className="md:hidden p-1.5 text-slate-300 hover:bg-slate-800 rounded-lg"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

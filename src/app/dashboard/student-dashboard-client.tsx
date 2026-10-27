@@ -99,7 +99,7 @@ export function StudentDashboardClient({
   return (
     <div className="space-y-8 pb-12">
       {/* Header Profile & Wallet Card */}
-      <section className="backdrop-blur-xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border border-slate-700/60 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-wrap items-center justify-between gap-6">
+      <section className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-amber-500/20">
             {currentUser?.name
@@ -125,7 +125,7 @@ export function StudentDashboardClient({
         </div>
 
         {/* Pre-funded simulated wallet badge */}
-        <div className="backdrop-blur-md bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 flex items-center gap-4 shadow-inner">
+        <div className="bg-[#090D16] border border-[#1E293B] rounded-2xl p-4 flex items-center gap-4 shadow-inner">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
             <Wallet className="w-5 h-5" />
           </div>
@@ -147,7 +147,7 @@ export function StudentDashboardClient({
       </section>
 
       {/* Interactive Student Wallet Transaction History Ledger */}
-      <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+      <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Receipt className="w-4 h-4 text-emerald-500" />
@@ -231,41 +231,41 @@ export function StudentDashboardClient({
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>Enrolled Courses</span>
-            <BookOpen className="w-4 h-4 text-brand-500" />
+            <BookOpen className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          <div className="text-2xl font-bold text-white mt-1">
             {courses.length}
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-[11px] text-slate-400 mt-0.5">
             {completedCoursesCount} completed • {courses.length - completedCoursesCount} in-progress
           </div>
         </div>
 
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>Curriculum Depth</span>
-            <Layers className="w-4 h-4 text-emerald-500" />
+            <Layers className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          <div className="text-2xl font-bold text-white mt-1">
             {totalWeeksEnrolled} Weeks
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-[11px] text-slate-400 mt-0.5">
             Sequential 1 to 7+ week curriculum tracks
           </div>
         </div>
 
-        <div className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>Earned Certificates</span>
-            <Award className="w-4 h-4 text-amber-500" />
+            <Award className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          <div className="text-2xl font-bold text-white mt-1">
             {certificates.length} Verified
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-[11px] text-slate-400 mt-0.5">
             Cryptographic verification hash on ledger
           </div>
         </div>
@@ -314,7 +314,7 @@ export function StudentDashboardClient({
       {activeTab === "enrolled" && (
         <div className="space-y-4">
           {courses.length === 0 ? (
-            <div className="backdrop-blur-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4">
+            <div className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-12 text-center space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
                 <BookOpen className="w-7 h-7" />
               </div>
@@ -336,7 +336,7 @@ export function StudentDashboardClient({
             courses.map((cohort) => (
               <div
                 key={cohort.id || cohort.course_id}
-                className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all space-y-4"
+                className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all space-y-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -473,7 +473,7 @@ export function StudentDashboardClient({
       {activeTab === "certificates" && (
         <div className="space-y-4">
           {certificates.length === 0 ? (
-            <div className="backdrop-blur-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4">
+            <div className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-12 text-center space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
                 <Award className="w-7 h-7" />
               </div>
@@ -489,7 +489,7 @@ export function StudentDashboardClient({
               {certificates.map((cert) => (
                 <div
                   key={cert.id || cert.certificate_code}
-                  className="backdrop-blur-md bg-white dark:bg-slate-900/70 border border-amber-500/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                  className="bg-[#0F172A] border border-amber-500/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">

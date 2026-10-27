@@ -93,15 +93,15 @@ export function CoursePreviewClient({
       </div>
 
       {/* Hero Showcase Section */}
-      <section className="relative overflow-hidden rounded-3xl backdrop-blur-xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-brand-950/80 border border-slate-700/60 p-8 sm:p-12 text-white shadow-2xl">
+      <section className="relative overflow-hidden rounded-3xl bg-[#0F172A] border border-[#1E293B] p-8 sm:p-12 text-white shadow-2xl">
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Left Column: Metadata & Headline */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-400/30">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
                 {course.category}
               </span>
-              <div className="flex items-center gap-1.5 text-xs text-amber-400 font-semibold px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700/80">
+              <div className="flex items-center gap-1.5 text-xs text-amber-400 font-semibold px-2.5 py-1 rounded-full bg-[#090D16] border border-[#1E293B]">
                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                 <span>{course.rating || 4.9}</span>
                 <span className="text-slate-400 font-normal">
@@ -128,12 +128,12 @@ export function CoursePreviewClient({
               </div>
 
               <div className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-brand-400" />
+                <Calendar className="w-4 h-4 text-indigo-400" />
                 <span>{course.total_weeks || weeks.length} Sequential Weeks</span>
               </div>
 
               <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-brand-400" />
+                <Clock className="w-4 h-4 text-indigo-400" />
                 <span>{totalHours}+ Hours Video Instruction</span>
               </div>
 
@@ -145,7 +145,7 @@ export function CoursePreviewClient({
           </div>
 
           {/* Right Column: Sticky Enrollment Box */}
-          <div className="w-full backdrop-blur-2xl bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-2xl space-y-4">
+          <div className="w-full bg-[#090D16] border border-[#1E293B] rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-baseline justify-between">
               <div>
                 <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
@@ -256,7 +256,7 @@ export function CoursePreviewClient({
             return (
               <div
                 key={week.id || week.week_number}
-                className="backdrop-blur-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4"
+                className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4"
               >
                 {/* Week Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3">

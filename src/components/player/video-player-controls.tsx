@@ -157,6 +157,64 @@ export function VideoPlayerControls({
     setIsMuted(vol === 0);
   };
 
+  // Keyboard shortcuts (Space/k = play/pause, Left/Right = seek 10s, m = mute, f = fullscreen)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.tagName === "SELECT" ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container) return;
+      const isFocused = container.contains(activeEl) || activeEl === document.body;
+
+      if (e.code === "Space" || e.key === "k" || e.key === "K") {
+        if (isFocused) {
+          e.preventDefault();
+          const video = videoRef.current;
+          if (video) {
+            if (video.paused || video.ended) {
+              video.play().catch(() => {});
+            } else {
+              video.pause();
+            }
+          }
+        }
+      } else if (e.key === "ArrowLeft" && isFocused) {
+        e.preventDefault();
+        if (videoRef.current) {
+          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+        }
+      } else if (e.key === "ArrowRight" && isFocused) {
+        e.preventDefault();
+        if (videoRef.current) {
+          const maxDur = videoRef.current.duration || 999999;
+          videoRef.current.currentTime = Math.min(maxDur, videoRef.current.currentTime + 10);
+        }
+      } else if ((e.key === "m" || e.key === "M") && isFocused) {
+        e.preventDefault();
+        const video = videoRef.current;
+        if (video) {
+          video.muted = !video.muted;
+          setIsMuted(video.muted);
+        }
+      } else if ((e.key === "f" || e.key === "F") && isFocused) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [videoRef]);
+
   const toggleFullscreen = () => {
     const container = containerRef.current || videoRef.current?.parentElement;
     if (!container) return;
@@ -173,7 +231,8 @@ export function VideoPlayerControls({
   return (
     <div
       ref={containerRef}
-      className="group relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col justify-end"
+      tabIndex={0}
+      className="group relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col justify-end focus:outline-none focus:ring-1 focus:ring-brand-500/50"
     >
       {/* Video Element is mounted by parent or nested */}
       {videoUrl ? (

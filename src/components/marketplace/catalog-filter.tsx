@@ -45,13 +45,13 @@ export function CatalogFilter({
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search distributed systems, AI swarms, zero-trust security..."
-            className="w-full h-10 pl-10 pr-9 text-xs rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 backdrop-blur-md shadow-sm transition-all"
+            className="w-full h-10 pl-10 pr-9 text-xs rounded-xl bg-[#0F172A] border border-[#1E293B] text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm transition-all"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -59,7 +59,7 @@ export function CatalogFilter({
         </div>
 
         {/* Price Filter Segmented Button */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl backdrop-blur-md self-start sm:self-auto">
+        <div className="flex items-center gap-1 p-1 bg-[#0F172A] border border-[#1E293B] rounded-xl self-start sm:self-auto">
           {(["ALL", "PAID", "FREE"] as const).map((filter) => {
             const isActive = priceFilter === filter;
             const labels: Record<string, string> = {
@@ -75,8 +75,8 @@ export function CatalogFilter({
                 onClick={() => onPriceFilterChange(filter)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isActive
-                    ? "bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-indigo-600 text-white shadow-sm font-bold"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
                 {labels[filter]}
@@ -87,7 +87,7 @@ export function CatalogFilter({
       </div>
 
       {/* Category Pills Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1E293B] pb-3">
         <div className="flex flex-wrap items-center gap-2">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat;
@@ -96,10 +96,10 @@ export function CatalogFilter({
                 key={cat}
                 type="button"
                 onClick={() => onCategoryChange(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
                   isSelected
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm"
-                    : "bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-semibold"
+                    : "bg-[#0F172A] border border-[#1E293B] text-slate-400 hover:text-white hover:border-slate-700"
                 }`}
               >
                 {cat}
@@ -109,8 +109,8 @@ export function CatalogFilter({
         </div>
 
         {totalResults !== undefined && (
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Showing <span className="font-semibold text-slate-900 dark:text-white">{totalResults}</span> cohorts
+          <div className="text-xs text-slate-400">
+            Showing <span className="font-semibold text-white">{totalResults}</span> cohorts
           </div>
         )}
       </div>

@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
-import { getDb, initDb } from "@/lib/db";
 import { getCurrentUser, hasPermission } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit";
+import { dbAdapter } from "@/lib/supabase/adapter";
 
 export async function POST(request: NextRequest) {
   try {
-    initDb();
-    const db = getDb();
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
 
     if (!hasPermission(currentUser.role, "MANAGER")) {
       return NextResponse.json(
@@ -27,68 +24,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    const course = db.prepare("SELECT * FROM courses WHERE id = ?").get(courseId) as any;
-    if (!course) {
-      return NextResponse.json(
-        { success: false, error: "Course not found" },
-        { status: 404 }
-      );
-    }
-
-    const now = new Date().toISOString();
-    let calculatedDueDate = dueDate;
-    if (!calculatedDueDate) {
-      calculatedDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    // Check if already enrolled
-    const existing = db.prepare("SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?").get(userId, courseId) as any;
-
-    let enrollmentId: string;
-    if (existing) {
-      enrollmentId = existing.id;
-      db.prepare(`
-        UPDATE enrollments
-        SET due_date = ?, assigned_by = ?, updated_at = ?
-        WHERE id = ?
-      `).run(calculatedDueDate, currentUser.id, now, enrollmentId);
-    } else {
-      enrollmentId = `enr_${randomUUID().substring(0, 12)}`;
-      db.prepare(`
-        INSERT INTO enrollments (
-          id, user_id, course_id, status, progress_pct, assigned_by, assigned_at, due_date, created_at, updated_at
-        ) VALUES (?, ?, ?, 'NOT_STARTED', 0, ?, ?, ?, ?, ?)
-      `).run(enrollmentId, userId, courseId, currentUser.id, now, calculatedDueDate, now, now);
-    }
-
-    recordAuditEvent({
-      actorId: currentUser.id,
-      actorRole: currentUser.role,
-      actorName: currentUser.name,
-      action: "COURSE_ASSIGNED",
-      targetType: "ENROLLMENT",
-      targetId: enrollmentId,
-      courseId,
-      details: {
-        assignedToUserId: userId,
-        assignedToName: user.name,
-        assignedByUserId: currentUser.id,
-        assignedByName: currentUser.name,
+    let result: any;
+    try {
+      result = await dbAdapter.assignCourse({
+        userId,
         courseId,
-        courseTitle: course.title,
-        dueDate: calculatedDueDate,
-      },
-    });
+        dueDate,
+        assignedBy: currentUser.id,
+      });
+    } catch (err: any) {
+      if (err.message === "USER_NOT_FOUND") {
+        return NextResponse.json(
+          { success: false, error: "User not found" },
+          { status: 404 }
+        );
+      }
+      if (err.message === "COURSE_NOT_FOUND") {
+        return NextResponse.json(
+          { success: false, error: "Course not found" },
+          { status: 404 }
+        );
+      }
+      throw err;
+    }
 
-    const enrollment = db.prepare("SELECT * FROM enrollments WHERE id = ?").get(enrollmentId);
+    const { enrollment, user, course } = result;
+
+    try {
+      recordAuditEvent({
+        actorId: currentUser.id,
+        actorRole: currentUser.role,
+        actorName: currentUser.name,
+        action: "COURSE_ASSIGNED",
+        targetType: "ENROLLMENT",
+        targetId: enrollment.id,
+        courseId,
+        details: {
+          assignedToUserId: userId,
+          assignedToName: user.name,
+          assignedByUserId: currentUser.id,
+          assignedByName: currentUser.name,
+          courseId,
+          courseTitle: course.title,
+          dueDate: enrollment.due_date,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error:", auditErr);
+    }
 
     return NextResponse.json({
       success: true,

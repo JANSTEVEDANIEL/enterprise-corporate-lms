@@ -34,3 +34,28 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request);
+    const body = await request.json().catch(() => ({}));
+    const targetUserId = body.user_id || user.id;
+    const amountDollars = typeof body.amount_dollars === "number" ? body.amount_dollars : 500.0;
+    const amountCents = Math.round(amountDollars * 100);
+
+    const updatedWallet = await dbAdapter.setWalletBalance(targetUserId, amountCents);
+
+    return NextResponse.json({
+      success: true,
+      user_id: targetUserId,
+      wallet: updatedWallet,
+      new_balance: updatedWallet?.balance_dollars ?? amountDollars,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to update wallet balance" },
+      { status: 500 }
+    );
+  }
+}
+
